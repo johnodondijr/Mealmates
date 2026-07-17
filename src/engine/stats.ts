@@ -1,0 +1,218 @@
+import type { AppData, Food, MealEaten } from '../types'
+import { currentMonthKey, daysSince, monthKey } from '../lib/format'
+
+// ---- Vote-winner streak -> Chef's Favorite ----
+// Count how many closed votes each member's chosen (winning) option they voted for.
+export function chefWinCounts(data: AppData): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const v of data.votes) {
+    if (v.status !== 'closed' || !v.winner_option_id) continue
+    // Members who voted for the winning option get a point.
+    const winners = data.ballots.filter(
+      (b) => b.vote_id === v.id && b.option_id === v.winner_option_id,
+    )
+    for (const b of winners) {
+      counts.set(b.member_id, (counts.get(b.member_id) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+export function chefFavoriteId(data: AppData): string | null {
+  const counts = chefWinCounts(data)
+  let best: string | null = null
+  let bestN = 0
+  for (const [id, n] of counts) {
+    if (n > bestN) {
+      best = id
+      bestN = n
+    }
+  }
+  return bestN > 0 ? best : null
+}
+
+export interface ComboCount {
+  label: string
+  count: number
+  emojis: string
+}
+
+export function mostEatenCombos(
+  data: AppData,
+  scope: 'month' | 'all' = 'month',
+): ComboCount[] {
+  const foodById = new Map(data.foods.map((f) => [f.id, f]))
+  const counts = new Map<string, { label: string; count: number; emojis: string }>()
+  const mk = currentMonthKey()
+  for (const m of data.meals) {
+    if (scope === 'month' && monthKey(m.eaten_on) !== mk) continue
+    const key = m.label
+    const emojis = [m.base_id, m.protein_id, m.veg_id]
+      .map((id) => (id ? foodById.get(id)?.emoji : null))
+      .filter(Boolean)
+      .join('')
+    const existing = counts.get(key)
+    if (existing) existing.count++
+    else counts.set(key, { label: m.label, count: 1, emojis })
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count)
+}
+
+export interface FoodFreq {
+  food: Food
+  count: number
+  daysSinceLast: number | null
+}
+
+export function foodFrequency(data: AppData): FoodFreq[] {
+  const counts = new Map<string, number>()
+  const last = new Map<string, string>()
+  for (const m of data.meals) {
+    for (const id of [m.base_id, m.protein_id, m.veg_id]) {
+      if (!id) continue
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+      const prev = last.get(id)
+      if (!prev || m.eaten_on > prev) last.set(id, m.eaten_on)
+    }
+  }
+  return data.foods
+    .map((food) => ({
+      food,
+      count: counts.get(food.id) ?? 0,
+      daysSinceLast: last.has(food.id) ? daysSince(last.get(food.id)!) : null,
+    }))
+    .filter((f) => f.count > 0)
+    .sort((a, b) => b.count - a.count)
+}
+
+// Calendar heatmap: last `days` days -> the meal eaten (most recent that day).
+export interface HeatCell {
+  date: string
+  meal: MealEaten | null
+  emojis: string
+}
+
+export function heatmap(data: AppData, days = 28): HeatCell[] {
+  const foodById = new Map(data.foods.map((f) => [f.id, f]))
+  const byDate = new Map<string, MealEaten>()
+  for (const m of data.meals) {
+    // keep last-logged per date
+    byDate.set(m.eaten_on, m)
+  }
+  const cells: HeatCell[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const iso = d.toISOString().slice(0, 10)
+    const meal = byDate.get(iso) ?? null
+    const emojis = meal
+      ? [meal.base_id, meal.protein_id, meal.veg_id]
+          .map((id) => (id ? foodById.get(id)?.emoji : null))
+          .filter(Boolean)
+          .join('')
+      : ''
+    cells.push({ date: iso, meal, emojis })
+  }
+  return cells
+}
+
+// ---- Expense stats ----
+export function monthExpenses(data: AppData, mk = currentMonthKey()) {
+  return data.expenses.filter((e) => monthKey(e.spent_on) === mk)
+}
+
+export function totalSpentThisMonth(data: AppData): number {
+  return monthExpenses(data).reduce((s, e) => s + e.amount, 0)
+}
+
+export interface PersonSpend {
+  memberId: string
+  paid: number
+  fairShare: number
+  balance: number // positive => owed money, negative => owes
+}
+
+export function spendByPerson(data: AppData): PersonSpend[] {
+  const exps = monthExpenses(data)
+  const total = exps.reduce((s, e) => s + e.amount, 0)
+  const share = data.members.length ? total / data.members.length : 0
+  return data.members.map((m) => {
+    const paid = exps
+      .filter((e) => e.paid_by === m.id)
+      .reduce((s, e) => s + e.amount, 0)
+    return { memberId: m.id, paid, fairShare: share, balance: paid - share }
+  })
+}
+
+export function spendByCategory(data: AppData): { category: string; total: number }[] {
+  const exps = monthExpenses(data)
+  const map = new Map<string, number>()
+  for (const e of exps) map.set(e.category, (map.get(e.category) ?? 0) + e.amount)
+  return [...map.entries()]
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total)
+}
+
+export function spendByWeek(data: AppData): { label: string; total: number }[] {
+  const exps = monthExpenses(data)
+  const weeks = [0, 0, 0, 0, 0]
+  for (const e of exps) {
+    const day = Number(e.spent_on.slice(8, 10))
+    const w = Math.min(4, Math.floor((day - 1) / 7))
+    weeks[w] += e.amount
+  }
+  return weeks.map((total, i) => ({ label: `W${i + 1}`, total }))
+}
+
+// ---- Household Wrapped ----
+export interface Wrapped {
+  monthLabel: string
+  topMeal: ComboCount | null
+  totalSpent: number
+  biggestSpender: { name: string; amount: number } | null
+  mostRefused: { name: string; count: number } | null
+  chefFavorite: { name: string; wins: number } | null
+  mealsLogged: number
+}
+
+export function buildWrapped(data: AppData): Wrapped {
+  const combos = mostEatenCombos(data, 'month')
+  const spends = spendByPerson(data)
+  const nameById = new Map(data.members.map((m) => [m.id, m.name]))
+
+  const biggest = [...spends].sort((a, b) => b.paid - a.paid)[0]
+  const refusedCounts = new Map<string, number>()
+  for (const p of data.preferences) {
+    if (p.preference === 'refuse')
+      refusedCounts.set(p.food_id, (refusedCounts.get(p.food_id) ?? 0) + 1)
+  }
+  let mostRefused: Wrapped['mostRefused'] = null
+  for (const [foodId, count] of refusedCounts) {
+    const food = data.foods.find((f) => f.id === foodId)
+    if (food && (!mostRefused || count > mostRefused.count))
+      mostRefused = { name: food.name, count }
+  }
+
+  const chefId = chefFavoriteId(data)
+  const chefWins = chefWinCounts(data)
+
+  return {
+    monthLabel: new Date().toLocaleDateString('en-KE', {
+      month: 'long',
+      year: 'numeric',
+    }),
+    topMeal: combos[0] ?? null,
+    totalSpent: totalSpentThisMonth(data),
+    biggestSpender:
+      biggest && biggest.paid > 0
+        ? { name: nameById.get(biggest.memberId) ?? '?', amount: biggest.paid }
+        : null,
+    mostRefused,
+    chefFavorite: chefId
+      ? { name: nameById.get(chefId) ?? '?', wins: chefWins.get(chefId) ?? 0 }
+      : null,
+    mealsLogged: data.meals.filter(
+      (m) => monthKey(m.eaten_on) === currentMonthKey(),
+    ).length,
+  }
+}

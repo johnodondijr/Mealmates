@@ -1,0 +1,47 @@
+import type {
+  AppData,
+  Expense,
+  Food,
+  MealEaten,
+  Member,
+  Preference,
+  Settings,
+  Vote,
+  VoteBallot,
+  VoteOption,
+} from '../types'
+
+// The data-layer contract. Both the localStorage adapter and the Supabase
+// adapter implement this, so the UI never needs to know which one is live.
+export interface Repository {
+  loadAll(): Promise<AppData>
+
+  // Realtime: fires whenever data changes elsewhere (other tab / other device).
+  // The caller reloads the snapshot in response.
+  subscribe(onChange: () => void): () => void
+
+  upsertMember(member: Member): Promise<void>
+  removeMember(id: string): Promise<void>
+
+  upsertFood(food: Food): Promise<void>
+  removeFood(id: string): Promise<void>
+
+  // pref === null clears the member's preference for that food.
+  setPreference(
+    memberId: string,
+    foodId: string,
+    pref: Preference | null,
+  ): Promise<void>
+
+  createVote(vote: Vote, options: VoteOption[]): Promise<void>
+  castBallot(ballot: VoteBallot): Promise<void>
+  closeVote(voteId: string, winnerOptionId: string | null): Promise<void>
+
+  logMeal(meal: MealEaten): Promise<void>
+  removeMeal(id: string): Promise<void>
+
+  addExpense(expense: Expense): Promise<void>
+  removeExpense(id: string): Promise<void>
+
+  updateSettings(settings: Settings): Promise<void>
+}
