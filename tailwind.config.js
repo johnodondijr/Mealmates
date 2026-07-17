@@ -5,8 +5,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Baloo 2"', 'system-ui', 'sans-serif'],
-        body: ['Nunito', 'system-ui', 'sans-serif'],
+        // Clean, modern, grown-up. Headings differ from body by weight, not face.
+        display: ['Inter', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      letterSpacing: {
+        tightish: '-0.01em',
       },
       colors: {
         // Warm, appetizing palette — no cold corporate blue.

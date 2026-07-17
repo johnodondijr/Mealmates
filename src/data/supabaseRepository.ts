@@ -30,6 +30,7 @@ export class SupabaseRepository implements Repository {
       members,
       foods,
       preferences,
+      wishes,
       votes,
       voteOptions,
       ballots,
@@ -40,6 +41,7 @@ export class SupabaseRepository implements Repository {
       this.db.from('members').select('*').order('created_at'),
       this.db.from('foods').select('*').order('created_at'),
       this.db.from('food_preferences').select('*'),
+      this.db.from('meal_wishes').select('*'),
       this.db.from('votes').select('*').order('created_at'),
       this.db.from('vote_options').select('*'),
       this.db.from('vote_ballots').select('*'),
@@ -60,6 +62,7 @@ export class SupabaseRepository implements Repository {
       members: (members.data as Member[]) ?? [],
       foods: (foods.data as Food[]) ?? [],
       preferences: preferences.data ?? [],
+      wishes: wishes.data ?? [],
       votes: (votes.data as Vote[]) ?? [],
       voteOptions: (voteOptions.data as VoteOption[]) ?? [],
       ballots: (ballots.data as VoteBallot[]) ?? [],
@@ -123,6 +126,32 @@ export class SupabaseRepository implements Repository {
     }
   }
 
+  async setWish(
+    memberId: string,
+    foodId: string,
+    wishedOn: string,
+    on: boolean,
+  ): Promise<void> {
+    await this.db
+      .from('meal_wishes')
+      .delete()
+      .eq('member_id', memberId)
+      .eq('food_id', foodId)
+      .eq('wished_on', wishedOn)
+    if (on) {
+      await this.db.from('meal_wishes').insert({
+        id: newId('wish'),
+        member_id: memberId,
+        food_id: foodId,
+        wished_on: wishedOn,
+      })
+    }
+  }
+
+  async clearWishes(wishedOn: string): Promise<void> {
+    await this.db.from('meal_wishes').delete().eq('wished_on', wishedOn)
+  }
+
   async createVote(vote: Vote, options: VoteOption[]): Promise<void> {
     await this.db.from('votes').insert(vote)
     await this.db.from('vote_options').insert(options)
@@ -146,6 +175,9 @@ export class SupabaseRepository implements Repository {
 
   async logMeal(meal: MealEaten): Promise<void> {
     await this.db.from('meals_eaten').insert(meal)
+  }
+  async updateMeal(meal: MealEaten): Promise<void> {
+    await this.db.from('meals_eaten').update(meal).eq('id', meal.id)
   }
   async removeMeal(id: string): Promise<void> {
     await this.db.from('meals_eaten').delete().eq('id', id)

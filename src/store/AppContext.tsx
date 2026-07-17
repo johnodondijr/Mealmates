@@ -12,6 +12,7 @@ import type {
   AppData,
   Expense,
   Food,
+  MealCost,
   MealEaten,
   Member,
   Preference,
@@ -45,6 +46,10 @@ interface AppContextValue {
     memberId?: string,
   ) => Promise<void>
 
+  // wishes ("I want this today")
+  setWish: (foodId: string, on: boolean, memberId?: string) => Promise<void>
+  clearWishes: (wishedOn: string) => Promise<void>
+
   // votes
   createVote: (vote: Vote, options: VoteOption[]) => Promise<void>
   castBallot: (voteId: string, optionId: string, memberId?: string) => Promise<void>
@@ -52,6 +57,7 @@ interface AppContextValue {
 
   // meals
   logMeal: (meal: MealEaten) => Promise<void>
+  updateMeal: (meal: MealEaten) => Promise<void>
   removeMeal: (id: string) => Promise<void>
 
   // expenses
@@ -124,6 +130,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         (foodId: string, pref: Preference | null, memberId?: string) =>
           repo.setPreference(memberId ?? currentMemberId, foodId, pref),
       ),
+      setWish: withReload((foodId: string, on: boolean, memberId?: string) =>
+        repo.setWish(memberId ?? currentMemberId, foodId, todayISO(), on),
+      ),
+      clearWishes: withReload((wishedOn: string) => repo.clearWishes(wishedOn)),
 
       createVote: withReload((v: Vote, o: VoteOption[]) => repo.createVote(v, o)),
       castBallot: withReload(
@@ -141,6 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ),
 
       logMeal: withReload((meal: MealEaten) => repo.logMeal(meal)),
+      updateMeal: withReload((meal: MealEaten) => repo.updateMeal(meal)),
       removeMeal: withReload((id: string) => repo.removeMeal(id)),
 
       addExpense: withReload((e: Expense) => repo.addExpense(e)),
@@ -171,7 +182,11 @@ export function mealFromCombo(
   cost: number,
   loggedBy: string,
   fromVoteId: string | null = null,
+  componentCosts: MealCost[] = [],
 ): MealEaten {
+  const total = componentCosts.length
+    ? componentCosts.reduce((s, c) => s + c.amount, 0)
+    : cost
   return {
     id: newId('meal'),
     slot,
@@ -179,7 +194,8 @@ export function mealFromCombo(
     base_id: parts.base_id ?? null,
     protein_id: parts.protein_id ?? null,
     veg_id: parts.veg_id ?? null,
-    cost,
+    cost: total,
+    component_costs: componentCosts,
     eaten_on: todayISO(),
     logged_by: loggedBy,
     from_vote_id: fromVoteId,

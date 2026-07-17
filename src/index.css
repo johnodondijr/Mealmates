@@ -26,6 +26,7 @@ body {
   h3,
   .font-display {
     font-family: theme('fontFamily.display');
+    letter-spacing: -0.011em; /* Inter reads cleaner slightly tightened */
   }
 }
 

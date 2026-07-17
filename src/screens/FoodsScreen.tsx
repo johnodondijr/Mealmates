@@ -1,12 +1,17 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Ban, Heart, Pencil, Plus, Search } from 'lucide-react'
+import { Ban, Check, Heart, Pencil, Plus, Search, Utensils, Vote } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import type { Food, FoodCategory } from '../types'
+import { useNav } from '../store/NavContext'
+import type { Food, FoodCategory, MealSlot } from '../types'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Avatar } from '../components/ui/Avatar'
 import { FoodEditor } from '../components/FoodEditor'
-import { formatKES } from '../lib/format'
+import { buildWishCandidates } from '../engine/suggest'
+import { buildVoteFromCombos } from '../lib/buildVote'
+import { foodAvgCost } from '../engine/stats'
+import { formatKES, todayISO } from '../lib/format'
 import { cn } from '../lib/cn'
 
 const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = [
@@ -18,10 +23,12 @@ const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = [
 ]
 
 export function FoodsScreen() {
-  const { data, currentMemberId, currentMember, setPreference, removeFood } = useApp()
+  const { data, currentMemberId, setPreference, setWish, createVote } = useApp()
+  const { setTab } = useNav()
   const [cat, setCat] = useState<FoodCategory>('base')
   const [query, setQuery] = useState('')
-  const [editing, setEditing] = useState<Food | null | undefined>(undefined) // undefined = closed
+  const [editing, setEditing] = useState<Food | null | undefined>(undefined)
+  const today = todayISO()
 
   const prefFor = useMemo(() => {
     const map = new Map<string, 'love' | 'refuse'>()
@@ -31,22 +38,35 @@ export function FoodsScreen() {
     return map
   }, [data.preferences, currentMemberId])
 
-  const refuseCount = useMemo(() => {
-    const map = new Map<string, number>()
+  const counts = useMemo(() => {
+    const love = new Map<string, number>()
+    const refuse = new Map<string, number>()
     for (const p of data.preferences) {
-      if (p.preference === 'refuse')
-        map.set(p.food_id, (map.get(p.food_id) ?? 0) + 1)
+      const m = p.preference === 'love' ? love : refuse
+      m.set(p.food_id, (m.get(p.food_id) ?? 0) + 1)
     }
-    return map
+    return { love, refuse }
   }, [data.preferences])
 
-  const loveCount = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const p of data.preferences) {
-      if (p.preference === 'love') map.set(p.food_id, (map.get(p.food_id) ?? 0) + 1)
+  // Who wants each food today.
+  const wishers = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const w of data.wishes) {
+      if (w.wished_on !== today) continue
+      if (!map.has(w.food_id)) map.set(w.food_id, [])
+      map.get(w.food_id)!.push(w.member_id)
     }
     return map
-  }, [data.preferences])
+  }, [data.wishes, today])
+
+  const myWishCount = useMemo(
+    () => data.wishes.filter((w) => w.wished_on === today && w.member_id === currentMemberId).length,
+    [data.wishes, today, currentMemberId],
+  )
+  const totalWishesToday = useMemo(
+    () => new Set(data.wishes.filter((w) => w.wished_on === today).map((w) => w.food_id)).size,
+    [data.wishes, today],
+  )
 
   const foods = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -55,21 +75,69 @@ export function FoodsScreen() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [data.foods, cat, query])
 
-  const toggle = (food: Food, pref: 'love' | 'refuse') => {
+  const memberById = useMemo(
+    () => new Map(data.members.map((m) => [m.id, m])),
+    [data.members],
+  )
+
+  const togglePref = (food: Food, pref: 'love' | 'refuse') => {
     const current = prefFor.get(food.id)
     setPreference(food.id, current === pref ? null : pref)
+  }
+
+  const toggleWish = (food: Food) => {
+    const on = wishers.get(food.id)?.includes(currentMemberId) ?? false
+    setWish(food.id, !on)
+  }
+
+  const makeVoteFromPicks = async () => {
+    const combos = buildWishCandidates(
+      data,
+      today,
+      { budgetMode: data.settings.budget_mode, presentMemberIds: data.members.map((m) => m.id) },
+      4,
+    )
+    if (combos.length < 2) return
+    const slot: MealSlot = 'dinner'
+    const { vote, options } = buildVoteFromCombos(
+      currentMemberId,
+      slot,
+      "Today's picks",
+      combos,
+    )
+    await createVote(vote, options)
+    setTab('vote')
   }
 
   return (
     <div className="px-4 pb-4">
       <div className="pt-2">
-        <h2 className="font-display text-2xl font-extrabold text-charcoal-900 dark:text-cream">
+        <h2 className="font-display text-2xl font-bold tracking-tightish text-charcoal-900 dark:text-cream">
           Food Library 🍲
         </h2>
-        <p className="text-sm font-semibold text-charcoal-800/60 dark:text-cream/50">
-          Tag what {currentMember?.name} loves ❤️ or refuses 🚫
+        <p className="text-sm font-medium text-charcoal-800/60 dark:text-cream/50">
+          Tap a food to say <b>“I want this today”</b>. Use the icons to love ❤️,
+          refuse 🚫, or edit.
         </p>
       </div>
+
+      {/* Today's picks CTA */}
+      {totalWishesToday > 0 && (
+        <Card className="mt-3 flex items-center gap-3 border-2 border-avocado-300 bg-avocado-50 p-3 dark:border-avocado-500/30 dark:bg-avocado-500/10">
+          <Utensils size={20} className="shrink-0 text-avocado-600" />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
+              {totalWishesToday} food{totalWishesToday === 1 ? '' : 's'} picked for today
+            </p>
+            <p className="text-xs font-medium text-charcoal-800/60 dark:text-cream/50">
+              You've picked {myWishCount}. Turn everyone's picks into a vote.
+            </p>
+          </div>
+          <Button size="sm" onClick={makeVoteFromPicks}>
+            <Vote size={16} /> Vote
+          </Button>
+        </Card>
+      )}
 
       {/* Search */}
       <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 shadow-card dark:bg-charcoal-800">
@@ -90,7 +158,7 @@ export function FoodsScreen() {
               key={c.id}
               onClick={() => setCat(c.id)}
               className={cn(
-                'whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-sm font-bold transition-colors',
+                'whitespace-nowrap rounded-full px-3.5 py-1.5 font-display text-sm font-semibold transition-colors',
                 cat === c.id
                   ? 'bg-paprika-500 text-white shadow-pop'
                   : 'bg-white text-charcoal-800 dark:bg-charcoal-800 dark:text-cream',
@@ -106,8 +174,11 @@ export function FoodsScreen() {
       <div className="mt-3 space-y-2">
         {foods.map((food, i) => {
           const mine = prefFor.get(food.id)
-          const refuses = refuseCount.get(food.id) ?? 0
-          const loves = loveCount.get(food.id) ?? 0
+          const refuses = counts.refuse.get(food.id) ?? 0
+          const loves = counts.love.get(food.id) ?? 0
+          const todaysWishers = wishers.get(food.id) ?? []
+          const iWant = todaysWishers.includes(currentMemberId)
+          const avg = foodAvgCost(data, food.id)
           return (
             <motion.div
               key={food.id}
@@ -115,57 +186,89 @@ export function FoodsScreen() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.02, 0.2) }}
             >
-              <Card
+              <div
+                onClick={() => toggleWish(food)}
                 className={cn(
-                  'flex items-center gap-3 p-3',
-                  refuses > 0 && 'ring-1 ring-red-300/60 dark:ring-red-500/30',
+                  'flex cursor-pointer items-center gap-3 rounded-3xl bg-white p-3 shadow-card transition-all active:scale-[0.99] dark:bg-charcoal-800/80',
+                  iWant && 'ring-2 ring-avocado-400',
+                  refuses > 0 && !iWant && 'ring-1 ring-red-300/60 dark:ring-red-500/30',
                 )}
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cream text-2xl dark:bg-charcoal-950">
+                <div
+                  className={cn(
+                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-2xl',
+                    iWant ? 'bg-avocado-100 dark:bg-avocado-500/20' : 'bg-cream dark:bg-charcoal-950',
+                  )}
+                >
                   {food.emoji}
+                  {iWant && (
+                    <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-avocado-500 text-white">
+                      <Check size={13} strokeWidth={3} />
+                    </span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
-                    {food.name}
-                  </p>
-                  <p className="text-xs font-semibold text-charcoal-800/50 dark:text-cream/40">
-                    {formatKES(food.cost)} · {food.effort} · {food.prep_minutes}m
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
+                      {food.name}
+                    </p>
+                    {food.suggestable === false && (
+                      <span className="shrink-0 rounded-full bg-charcoal-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-charcoal-800/60 dark:bg-charcoal-950 dark:text-cream/50">
+                        Not suggested
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
+                    {avg ? `~${formatKES(avg)} avg` : formatKES(food.cost)} · {food.effort}
                     {loves > 0 && <span className="ml-1">· ❤️{loves}</span>}
                     {refuses > 0 && <span className="ml-1 text-red-500">· 🚫{refuses}</span>}
                   </p>
                 </div>
-                <button
-                  onClick={() => toggle(food, 'love')}
-                  className={cn(
-                    'rounded-full p-2 transition-colors',
-                    mine === 'love'
-                      ? 'bg-paprika-100 text-paprika-600 dark:bg-paprika-500/20'
-                      : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
-                  )}
-                  aria-label="Love"
-                >
-                  <Heart size={20} fill={mine === 'love' ? 'currentColor' : 'none'} />
-                </button>
-                <button
-                  onClick={() => toggle(food, 'refuse')}
-                  className={cn(
-                    'rounded-full p-2 transition-colors',
-                    mine === 'refuse'
-                      ? 'bg-red-100 text-red-600 dark:bg-red-500/20'
-                      : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
-                  )}
-                  aria-label="Refuse"
-                >
-                  <Ban size={20} />
-                </button>
-                <button
-                  onClick={() => setEditing(food)}
-                  className="rounded-full p-2 text-charcoal-800/40 hover:bg-black/5 dark:text-cream/40"
-                  aria-label="Edit"
-                >
-                  <Pencil size={18} />
-                </button>
-              </Card>
+
+                {/* wisher avatars */}
+                {todaysWishers.length > 0 && (
+                  <div className="flex -space-x-2">
+                    {todaysWishers.map((id) => {
+                      const m = memberById.get(id)
+                      return m ? <Avatar key={id} member={m} size={22} ring /> : null
+                    })}
+                  </div>
+                )}
+
+                <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => togglePref(food, 'love')}
+                    className={cn(
+                      'rounded-full p-2 transition-colors',
+                      mine === 'love'
+                        ? 'bg-paprika-100 text-paprika-600 dark:bg-paprika-500/20'
+                        : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
+                    )}
+                    aria-label="Love"
+                  >
+                    <Heart size={19} fill={mine === 'love' ? 'currentColor' : 'none'} />
+                  </button>
+                  <button
+                    onClick={() => togglePref(food, 'refuse')}
+                    className={cn(
+                      'rounded-full p-2 transition-colors',
+                      mine === 'refuse'
+                        ? 'bg-red-100 text-red-600 dark:bg-red-500/20'
+                        : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
+                    )}
+                    aria-label="Refuse"
+                  >
+                    <Ban size={19} />
+                  </button>
+                  <button
+                    onClick={() => setEditing(food)}
+                    className="rounded-full p-2 text-charcoal-800/40 hover:bg-black/5 dark:text-cream/40"
+                    aria-label="Edit"
+                  >
+                    <Pencil size={17} />
+                  </button>
+                </div>
+              </div>
             </motion.div>
           )
         })}
@@ -192,14 +295,6 @@ export function FoodsScreen() {
           food={editing}
           defaultCategory={cat}
           onClose={() => setEditing(undefined)}
-          onDelete={
-            editing
-              ? async () => {
-                  await removeFood(editing.id)
-                  setEditing(undefined)
-                }
-              : undefined
-          }
         />
       )}
     </div>

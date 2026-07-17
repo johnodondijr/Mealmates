@@ -19,14 +19,25 @@ export interface Member {
   created_at: string
 }
 
+export interface Ingredient {
+  id: string
+  name: string
+  cost: number // KES
+}
+
 export interface Food {
   id: string
   name: string
   category: FoodCategory
   emoji: string
-  cost: number // rough KES estimate
+  cost: number // rough KES estimate (or the sum of ingredient costs)
   effort: Effort
   prep_minutes: number
+  // When false, the food stays in the library and can be picked manually,
+  // but the suggestion engine never proposes it (e.g. Chips/Fries).
+  suggestable: boolean
+  // Optional itemised ingredient cost breakdown for this food.
+  ingredients: Ingredient[]
   created_at: string
 }
 
@@ -82,6 +93,13 @@ export interface VoteBallot {
   created_at: string
 }
 
+// Actual per-item cost captured when a meal is cooked/eaten.
+export interface MealCost {
+  food_id: string | null // null for ad-hoc lines (e.g. "oil", "spices")
+  label: string
+  amount: number // KES
+}
+
 export interface MealEaten {
   id: string
   slot: MealSlot
@@ -89,11 +107,20 @@ export interface MealEaten {
   base_id: string | null
   protein_id: string | null
   veg_id: string | null
-  cost: number
+  cost: number // total actual cost for the day (sum of component_costs)
+  component_costs: MealCost[] // itemised actual costs
   eaten_on: string // ISO date (yyyy-mm-dd)
   logged_by: string
   from_vote_id: string | null
   created_at: string
+}
+
+// A member's "I want to eat this today" pick.
+export interface MealWish {
+  id: string
+  member_id: string
+  food_id: string
+  wished_on: string // ISO date
 }
 
 export interface Expense {
@@ -119,6 +146,7 @@ export interface AppData {
   members: Member[]
   foods: Food[]
   preferences: FoodPreference[]
+  wishes: MealWish[]
   votes: Vote[]
   voteOptions: VoteOption[]
   ballots: VoteBallot[]

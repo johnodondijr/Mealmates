@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useApp, mealFromCombo } from '../store/AppContext'
-import type { Food, MealSlot } from '../types'
+import type { Food, MealCost, MealSlot } from '../types'
 import { Sheet } from './ui/Sheet'
 import { Button } from './ui/Button'
+import { MealCostSheet } from './MealCostSheet'
 import { comboLabel } from '../engine/suggest'
+import { foodAvgCost } from '../engine/stats'
 import { todayISO, formatKES } from '../lib/format'
 import { cn } from '../lib/cn'
 
@@ -24,6 +26,7 @@ export function LogMealSheet({ onClose }: LogMealSheetProps) {
   const [base, setBase] = useState<Food | null>(null)
   const [protein, setProtein] = useState<Food | null>(null)
   const [veg, setVeg] = useState<Food | null>(null)
+  const [costOpen, setCostOpen] = useState(false)
 
   const bases = data.foods.filter((f) => f.category === 'base')
   const proteins = data.foods.filter((f) => f.category === 'protein')
@@ -35,7 +38,13 @@ export function LogMealSheet({ onClose }: LogMealSheetProps) {
 
   const canSave = useMemo(() => Boolean(label), [label])
 
-  const save = async () => {
+  const costItems = ([base, protein, veg].filter(Boolean) as Food[]).map((f) => ({
+    food_id: f.id,
+    label: f.name,
+    suggested: foodAvgCost(data, f.id) ?? f.cost,
+  }))
+
+  const save = async (costs: MealCost[]) => {
     if (!canSave) return
     const meal = mealFromCombo(
       label,
@@ -47,6 +56,8 @@ export function LogMealSheet({ onClose }: LogMealSheetProps) {
       },
       cost,
       currentMemberId,
+      null,
+      costs,
     )
     // Manual entries respect the chosen date.
     meal.eaten_on = date
@@ -96,10 +107,20 @@ export function LogMealSheet({ onClose }: LogMealSheetProps) {
           )}
         </div>
 
-        <Button fullWidth onClick={save} disabled={!canSave}>
-          Log it ✅
+        <Button fullWidth onClick={() => setCostOpen(true)} disabled={!canSave}>
+          Next: enter cost →
         </Button>
       </div>
+
+      {costOpen && (
+        <MealCostSheet
+          title="What did it cost?"
+          items={costItems}
+          confirmLabel="Log meal ✅"
+          onClose={() => setCostOpen(false)}
+          onConfirm={save}
+        />
+      )}
     </Sheet>
   )
 }

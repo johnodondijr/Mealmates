@@ -184,7 +184,7 @@ export function buildCombo(
 
   const byCat = (cat: Food['category']) =>
     data.foods
-      .filter((f) => f.category === cat)
+      .filter((f) => f.category === cat && f.suggestable !== false)
       .map((f) => scoreFood(f, pref, lastEaten, opts))
 
   const bases = byCat('base')
@@ -255,4 +255,89 @@ export function comboLabel(c: {
   veg?: Food
 }): string {
   return [c.base?.name, c.protein?.name, c.veg?.name].filter(Boolean).join(' + ')
+}
+
+// Build vote candidates from what people said they *want* today.
+// Each distinct wished base is paired with the most-wished protein + veg,
+// so everyone's cravings show up as options. Falls back to the engine if
+// there aren't enough wishes to form 2+ combos.
+export function buildWishCandidates(
+  data: AppData,
+  wishedOn: string,
+  opts: SuggestOptions,
+  count = 4,
+): ScoredCombo[] {
+  const todays = data.wishes.filter((w) => w.wished_on === wishedOn)
+  const foodById = new Map(data.foods.map((f) => [f.id, f]))
+
+  // How many people want each food.
+  const demand = new Map<string, number>()
+  for (const w of todays) demand.set(w.food_id, (demand.get(w.food_id) ?? 0) + 1)
+
+  const wished = (cat: Food['category']) =>
+    [...demand.entries()]
+      .map(([id, n]) => ({ food: foodById.get(id), n }))
+      .filter((x): x is { food: Food; n: number } => !!x.food && x.food.category === cat)
+      .sort((a, b) => b.n - a.n)
+
+  const bases = wished('base')
+  const proteins = wished('protein')
+  const vegs = wished('veg')
+
+  const out: ScoredCombo[] = []
+  const seen = new Set<string>()
+  const topProtein = proteins[0]?.food
+  const topVeg = vegs[0]?.food
+
+  // One option per wished base, completed with the crowd's top protein/veg.
+  for (const b of bases) {
+    const protein = topProtein
+    const veg = topVeg
+    const key = `${b.food.id}|${protein?.id}|${veg?.id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const totalCost =
+      b.food.cost + (protein?.cost ?? 0) + (veg?.cost ?? 0)
+    out.push({
+      base: b.food,
+      protein,
+      veg,
+      score: b.n,
+      totalCost,
+      reasons: [`${b.n} wanted ${b.food.name} today 🙌`],
+    })
+    if (out.length >= count) break
+  }
+
+  // If proteins were wished but no bases, offer protein-led options too.
+  if (out.length < count && bases.length === 0) {
+    for (const p of proteins) {
+      const key = `|${p.food.id}|${topVeg?.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({
+        base: undefined,
+        protein: p.food,
+        veg: topVeg,
+        score: p.n,
+        totalCost: p.food.cost + (topVeg?.cost ?? 0),
+        reasons: [`${p.n} wanted ${p.food.name} today 🙌`],
+      })
+      if (out.length >= count) break
+    }
+  }
+
+  // Top up with engine suggestions if we still don't have 2 options.
+  if (out.length < 2) {
+    const filler = buildCandidates(data, opts, count - out.length)
+    for (const f of filler) {
+      const key = `${f.base?.id}|${f.protein?.id}|${f.veg?.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(f)
+      if (out.length >= count) break
+    }
+  }
+
+  return out.slice(0, count)
 }

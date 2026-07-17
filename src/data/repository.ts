@@ -33,11 +33,21 @@ export interface Repository {
     pref: Preference | null,
   ): Promise<void>
 
+  // "I want to eat this today" pick. on=false removes it.
+  setWish(
+    memberId: string,
+    foodId: string,
+    wishedOn: string,
+    on: boolean,
+  ): Promise<void>
+  clearWishes(wishedOn: string): Promise<void>
+
   createVote(vote: Vote, options: VoteOption[]): Promise<void>
   castBallot(ballot: VoteBallot): Promise<void>
   closeVote(voteId: string, winnerOptionId: string | null): Promise<void>
 
   logMeal(meal: MealEaten): Promise<void>
+  updateMeal(meal: MealEaten): Promise<void>
   removeMeal(id: string): Promise<void>
 
   addExpense(expense: Expense): Promise<void>

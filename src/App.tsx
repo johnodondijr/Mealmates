@@ -8,6 +8,7 @@ import { FoodsScreen } from './screens/FoodsScreen'
 import { MoneyScreen } from './screens/MoneyScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { NavProvider } from './store/NavContext'
 
 const SCREENS: Record<Tab, () => JSX.Element> = {
   decide: DecideScreen,
@@ -24,6 +25,7 @@ export default function App() {
   const Screen = SCREENS[tab]
 
   return (
+    <NavProvider value={{ tab, setTab }}>
     <div className="min-h-screen bg-cream text-charcoal-900 dark:bg-charcoal-950 dark:text-cream">
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
         <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
@@ -49,5 +51,6 @@ export default function App() {
         {settingsOpen && <SettingsScreen onClose={() => setSettingsOpen(false)} />}
       </AnimatePresence>
     </div>
+    </NavProvider>
   )
 }

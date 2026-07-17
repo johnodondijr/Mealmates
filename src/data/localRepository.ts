@@ -17,6 +17,28 @@ import { newId } from '../lib/id'
 const STORAGE_KEY = 'mealmates.data.v1'
 const CHANNEL = 'mealmates.sync'
 
+// Backfill fields added in later versions so older saved data keeps working
+// (and no eating history is lost).
+function migrate(data: AppData): AppData {
+  data.wishes ??= []
+  data.preferences ??= []
+  data.votes ??= []
+  data.voteOptions ??= []
+  data.ballots ??= []
+  data.meals ??= []
+  data.expenses ??= []
+  for (const f of data.foods ?? []) {
+    if (f.suggestable === undefined) f.suggestable = true
+    if (!Array.isArray(f.ingredients)) f.ingredients = []
+  }
+  for (const m of data.meals) {
+    if (!Array.isArray(m.component_costs)) {
+      m.component_costs = []
+    }
+  }
+  return data
+}
+
 // localStorage-backed adapter. Cross-tab realtime is handled with
 // BroadcastChannel (fast, same-origin) plus a `storage` event fallback.
 export class LocalRepository implements Repository {
@@ -30,7 +52,7 @@ export class LocalRepository implements Repository {
       return seed
     }
     try {
-      return JSON.parse(raw) as AppData
+      return migrate(JSON.parse(raw) as AppData)
     } catch {
       const seed = buildSeedData()
       this.write(seed, false)
@@ -127,6 +149,38 @@ export class LocalRepository implements Repository {
     })
   }
 
+  async setWish(
+    memberId: string,
+    foodId: string,
+    wishedOn: string,
+    on: boolean,
+  ): Promise<void> {
+    this.mutate((d) => {
+      d.wishes = d.wishes.filter(
+        (w) =>
+          !(
+            w.member_id === memberId &&
+            w.food_id === foodId &&
+            w.wished_on === wishedOn
+          ),
+      )
+      if (on) {
+        d.wishes.push({
+          id: newId('wish'),
+          member_id: memberId,
+          food_id: foodId,
+          wished_on: wishedOn,
+        })
+      }
+    })
+  }
+
+  async clearWishes(wishedOn: string): Promise<void> {
+    this.mutate((d) => {
+      d.wishes = d.wishes.filter((w) => w.wished_on !== wishedOn)
+    })
+  }
+
   async createVote(vote: Vote, options: VoteOption[]): Promise<void> {
     this.mutate((d) => {
       d.votes.push(vote)
@@ -157,6 +211,13 @@ export class LocalRepository implements Repository {
   async logMeal(meal: MealEaten): Promise<void> {
     this.mutate((d) => {
       d.meals.push(meal)
+    })
+  }
+
+  async updateMeal(meal: MealEaten): Promise<void> {
+    this.mutate((d) => {
+      const i = d.meals.findIndex((m) => m.id === meal.id)
+      if (i >= 0) d.meals[i] = meal
     })
   }
 

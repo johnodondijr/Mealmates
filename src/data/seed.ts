@@ -17,6 +17,7 @@ function food(
   cost: number,
   effort: Effort,
   prep_minutes: number,
+  suggestable = true,
 ): Food {
   return {
     id: `food_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
@@ -26,6 +27,8 @@ function food(
     cost,
     effort,
     prep_minutes,
+    suggestable,
+    ingredients: [],
     created_at: now(),
   }
 }
@@ -39,7 +42,8 @@ export const SEED_FOODS: Food[] = [
   food('Mukimo', 'base', '🥔', 100, 'Medium', 40),
   food('Matoke', 'base', '🍌', 90, 'Medium', 40),
   food('Mashed Potatoes', 'base', '🥔', 100, 'Medium', 35),
-  food('Fries / Chips', 'base', '🍟', 120, 'Medium', 25),
+  // Kept as an option, but not something eaten for regular meals — never suggested.
+  food('Fries / Chips', 'base', '🍟', 120, 'Medium', 25, false),
   food('Githeri', 'base', '🫘', 80, 'Medium', 60),
 
   // ---- Proteins ----
@@ -81,6 +85,29 @@ export const SEED_FOODS: Food[] = [
   food('Chips Masala', 'treat', '🍟', 180, 'Medium', 30),
 ]
 
+// Seed a few ingredient breakdowns so the feature isn't empty on first run.
+const SEED_INGREDIENTS: Record<string, Array<[string, number]>> = {
+  food_ugali: [['Maize flour', 35], ['Water', 0], ['Salt', 5]],
+  food_beef_stew: [
+    ['Beef (½ kg)', 200],
+    ['Onions', 20],
+    ['Tomatoes', 20],
+    ['Oil & spices', 10],
+  ],
+  food_rice: [['Rice (2 cups)', 55], ['Oil', 5]],
+  food_sukuma_wiki: [['Sukuma bunch', 20], ['Onion & oil', 10]],
+}
+for (const f of SEED_FOODS) {
+  const rows = SEED_INGREDIENTS[f.id]
+  if (rows) {
+    f.ingredients = rows.map(([name, cost]) => ({
+      id: `ing_${f.id}_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      name,
+      cost,
+    }))
+  }
+}
+
 const COLORS = ['#F45A28', '#F59300', '#6B942A', '#C2478E']
 const EMOJIS = ['🦁', '🌸', '🚀', '🦋']
 const NAMES = ['Fred', 'Girlfriend', 'Friend', "Friend's GF"]
@@ -106,6 +133,7 @@ export function buildSeedData(): AppData {
       { id: newId('pref'), member_id: 'member_3', food_id: 'food_pilau', preference: 'love' },
       { id: newId('pref'), member_id: 'member_4', food_id: 'food_fried_tilapia', preference: 'love' },
     ],
+    wishes: [],
     votes: [],
     voteOptions: [],
     ballots: [],
@@ -136,19 +164,31 @@ function seedMeals(): AppData['meals'] {
     ['Ugali + Sukuma Wiki', 'food_ugali', null, 'food_sukuma_wiki', 70, 5],
     ['Spaghetti + Minced Meat', 'food_spaghetti', 'food_minced_meat', null, 310, 6],
   ]
-  return rows.map(([label, base, protein, veg, cost, ago]) => ({
-    id: newId('meal'),
-    slot: 'dinner' as const,
-    label,
-    base_id: base,
-    protein_id: protein,
-    veg_id: veg,
-    cost,
-    eaten_on: daysAgo(ago),
-    logged_by: 'member_1',
-    from_vote_id: null,
-    created_at: now(),
-  }))
+  const foodName = (id: string | null) =>
+    SEED_FOODS.find((f) => f.id === id)?.name ?? ''
+  return rows.map(([label, base, protein, veg, cost, ago]) => {
+    // Split the total across the components so cost history has data.
+    const parts = [base, protein, veg].filter(Boolean) as string[]
+    const each = parts.length ? Math.round(cost / parts.length) : 0
+    return {
+      id: newId('meal'),
+      slot: 'dinner' as const,
+      label,
+      base_id: base,
+      protein_id: protein,
+      veg_id: veg,
+      cost,
+      component_costs: parts.map((id) => ({
+        food_id: id,
+        label: foodName(id),
+        amount: each,
+      })),
+      eaten_on: daysAgo(ago),
+      logged_by: 'member_1',
+      from_vote_id: null,
+      created_at: now(),
+    }
+  })
 }
 
 function seedExpenses(): AppData['expenses'] {

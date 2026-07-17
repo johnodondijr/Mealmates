@@ -3,7 +3,6 @@ import { useApp } from '../store/AppContext'
 import type { Expense } from '../types'
 import { Sheet } from './ui/Sheet'
 import { Button } from './ui/Button'
-import { Avatar } from './ui/Avatar'
 import { newId } from '../lib/id'
 import { todayISO } from '../lib/format'
 import { cn } from '../lib/cn'
@@ -22,11 +21,10 @@ const CATEGORIES: { id: Expense['category']; label: string; emoji: string }[] = 
 ]
 
 export function ExpenseEditor({ onClose }: ExpenseEditorProps) {
-  const { data, currentMemberId, addExpense } = useApp()
+  const { currentMemberId, addExpense } = useApp()
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<Expense['category']>('groceries')
-  const [paidBy, setPaidBy] = useState(currentMemberId)
   const [date, setDate] = useState(todayISO())
 
   const save = async () => {
@@ -37,7 +35,7 @@ export function ExpenseEditor({ onClose }: ExpenseEditorProps) {
       amount: amt,
       description: description.trim(),
       category,
-      paid_by: paidBy,
+      paid_by: currentMemberId,
       spent_on: date,
       meal_id: null,
       created_at: new Date().toISOString(),
@@ -87,31 +85,6 @@ export function ExpenseEditor({ onClose }: ExpenseEditorProps) {
                 )}
               >
                 {c.emoji} {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-1.5 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
-            Who paid?
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {data.members.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setPaidBy(m.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 transition-all',
-                  paidBy === m.id
-                    ? 'bg-avocado-100 ring-2 ring-avocado-400 dark:bg-avocado-500/20'
-                    : 'bg-white dark:bg-charcoal-800',
-                )}
-              >
-                <Avatar member={m} size={26} />
-                <span className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
-                  {m.name}
-                </span>
               </button>
             ))}
           </div>

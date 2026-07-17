@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Plus, Sparkles, Trash2, TrendingUp, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import type { Effort, Food, FoodCategory } from '../types'
+import type { Effort, Food, FoodCategory, Ingredient } from '../types'
 import { Sheet } from './ui/Sheet'
 import { Button } from './ui/Button'
 import { newId } from '../lib/id'
+import { foodCostHistory } from '../engine/stats'
+import { formatKES, relativeDay } from '../lib/format'
 import { cn } from '../lib/cn'
 
 const FOOD_EMOJIS = [
@@ -27,17 +29,38 @@ interface FoodEditorProps {
   food: Food | null // null = new
   defaultCategory: FoodCategory
   onClose: () => void
-  onDelete?: () => void
 }
 
-export function FoodEditor({ food, defaultCategory, onClose, onDelete }: FoodEditorProps) {
-  const { saveFood } = useApp()
+interface IngredientDraft extends Ingredient {}
+
+export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) {
+  const { data, saveFood, removeFood } = useApp()
   const [name, setName] = useState(food?.name ?? '')
   const [emoji, setEmoji] = useState(food?.emoji ?? '🍲')
   const [category, setCategory] = useState<FoodCategory>(food?.category ?? defaultCategory)
   const [cost, setCost] = useState(String(food?.cost ?? 100))
   const [effort, setEffort] = useState<Effort>(food?.effort ?? 'Medium')
   const [prep, setPrep] = useState(String(food?.prep_minutes ?? 30))
+  const [suggestable, setSuggestable] = useState(food?.suggestable ?? true)
+  const [ingredients, setIngredients] = useState<IngredientDraft[]>(
+    () => food?.ingredients ?? [],
+  )
+
+  const history = useMemo(
+    () => (food ? foodCostHistory(data, food.id) : []),
+    [data, food],
+  )
+  const avg = history.length
+    ? Math.round(history.reduce((s, p) => s + p.amount, 0) / history.length)
+    : null
+  const ingredientTotal = ingredients.reduce((s, i) => s + (Number(i.cost) || 0), 0)
+
+  const addIngredient = () =>
+    setIngredients((xs) => [...xs, { id: newId('ing'), name: '', cost: 0 }])
+  const setIng = (id: string, patch: Partial<Ingredient>) =>
+    setIngredients((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const removeIng = (id: string) =>
+    setIngredients((xs) => xs.filter((x) => x.id !== id))
 
   const save = async () => {
     if (!name.trim()) return
@@ -49,9 +72,20 @@ export function FoodEditor({ food, defaultCategory, onClose, onDelete }: FoodEdi
       cost: Number(cost) || 0,
       effort,
       prep_minutes: Number(prep) || 0,
+      suggestable,
+      ingredients: ingredients
+        .filter((i) => i.name.trim())
+        .map((i) => ({ ...i, name: i.name.trim(), cost: Number(i.cost) || 0 })),
       created_at: food?.created_at ?? new Date().toISOString(),
     })
     onClose()
+  }
+
+  const del = async () => {
+    if (food) {
+      await removeFood(food.id)
+      onClose()
+    }
   }
 
   return (
@@ -101,6 +135,40 @@ export function FoodEditor({ food, defaultCategory, onClose, onDelete }: FoodEdi
           </div>
         </div>
 
+        {/* Suggest toggle */}
+        <button
+          onClick={() => setSuggestable((s) => !s)}
+          className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-card dark:bg-charcoal-800"
+        >
+          <Sparkles
+            size={20}
+            className={suggestable ? 'text-avocado-500' : 'text-charcoal-800/30 dark:text-cream/30'}
+          />
+          <div className="flex-1">
+            <p className="font-display font-bold text-charcoal-900 dark:text-cream">
+              Suggest in meals
+            </p>
+            <p className="text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
+              {suggestable
+                ? 'The decider can propose this food.'
+                : 'Kept as an option, but never auto-suggested.'}
+            </p>
+          </div>
+          <span
+            className={cn(
+              'relative h-7 w-12 rounded-full transition-colors',
+              suggestable ? 'bg-avocado-500' : 'bg-charcoal-200 dark:bg-charcoal-950',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-1 h-5 w-5 rounded-full bg-white transition-all',
+                suggestable ? 'left-6' : 'left-1',
+              )}
+            />
+          </span>
+        </button>
+
         {/* Cost + prep */}
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -137,9 +205,83 @@ export function FoodEditor({ food, defaultCategory, onClose, onDelete }: FoodEdi
           </div>
         </div>
 
+        {/* Ingredients */}
+        <div>
+          <Label>Ingredients (optional)</Label>
+          <div className="space-y-2">
+            {ingredients.map((ing) => (
+              <div key={ing.id} className="flex items-center gap-2">
+                <input
+                  value={ing.name}
+                  onChange={(e) => setIng(ing.id, { name: e.target.value })}
+                  placeholder="e.g. Maize flour"
+                  className="min-w-0 flex-1 rounded-2xl bg-white px-3 py-2.5 font-semibold text-charcoal-900 shadow-card outline-none dark:bg-charcoal-800 dark:text-cream"
+                />
+                <div className="flex items-center gap-1 rounded-2xl bg-white px-3 py-2.5 shadow-card dark:bg-charcoal-800">
+                  <span className="text-xs font-bold text-charcoal-800/40 dark:text-cream/40">KES</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={ing.cost || ''}
+                    onChange={(e) => setIng(ing.id, { cost: Number(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="w-14 bg-transparent text-right font-bold text-charcoal-900 outline-none dark:text-cream"
+                  />
+                </div>
+                <button
+                  onClick={() => removeIng(ing.id)}
+                  className="rounded-full p-1.5 text-charcoal-800/30 hover:text-red-500 dark:text-cream/30"
+                  aria-label="Remove ingredient"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={addIngredient}
+              className="flex items-center gap-1.5 rounded-full bg-charcoal-50 px-3 py-2 text-sm font-bold text-charcoal-800/70 dark:bg-charcoal-800 dark:text-cream/60"
+            >
+              <Plus size={15} /> Add ingredient
+            </button>
+            {ingredients.length > 0 && (
+              <button
+                onClick={() => setCost(String(ingredientTotal))}
+                className="rounded-full bg-avocado-100 px-3 py-2 text-sm font-bold text-avocado-700 dark:bg-avocado-500/20"
+              >
+                Total {formatKES(ingredientTotal)} → set cost
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Price history */}
+        {food && history.length > 0 && (
+          <div className="rounded-2xl bg-cream p-3 dark:bg-charcoal-950">
+            <div className="mb-2 flex items-center gap-2">
+              <TrendingUp size={16} className="text-mango-600" />
+              <p className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
+                Price history · avg {avg !== null ? formatKES(avg) : '—'}
+              </p>
+            </div>
+            <div className="space-y-1">
+              {history.slice(0, 6).map((p, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between text-sm font-medium text-charcoal-800/70 dark:text-cream/60"
+                >
+                  <span>{relativeDay(p.date)}</span>
+                  <span className="font-bold">{formatKES(p.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 pt-1">
-          {onDelete && (
-            <Button variant="danger" onClick={onDelete}>
+          {food && (
+            <Button variant="danger" onClick={del}>
               <Trash2 size={18} />
             </Button>
           )}
@@ -173,7 +315,7 @@ function Chip({
     <button
       onClick={onClick}
       className={cn(
-        'rounded-full px-4 py-2 font-display text-sm font-bold transition-colors',
+        'rounded-full px-4 py-2 font-display text-sm font-semibold transition-colors',
         active
           ? 'bg-paprika-500 text-white shadow-pop'
           : 'bg-white text-charcoal-800 dark:bg-charcoal-800 dark:text-cream',

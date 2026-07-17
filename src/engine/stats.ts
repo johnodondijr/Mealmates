@@ -116,13 +116,71 @@ export function heatmap(data: AppData, days = 28): HeatCell[] {
   return cells
 }
 
-// ---- Expense stats ----
+// ---- Spend stats ----
+// Money spent = what meals actually cost (per-item) + any standalone expenses
+// (grocery runs, etc.). The Money view is organised by DAY, not by who paid.
 export function monthExpenses(data: AppData, mk = currentMonthKey()) {
   return data.expenses.filter((e) => monthKey(e.spent_on) === mk)
 }
 
+export function monthMeals(data: AppData, mk = currentMonthKey()) {
+  return data.meals.filter((m) => monthKey(m.eaten_on) === mk)
+}
+
 export function totalSpentThisMonth(data: AppData): number {
-  return monthExpenses(data).reduce((s, e) => s + e.amount, 0)
+  const meals = monthMeals(data).reduce((s, m) => s + (m.cost || 0), 0)
+  const exps = monthExpenses(data).reduce((s, e) => s + e.amount, 0)
+  return meals + exps
+}
+
+export interface DaySpend {
+  date: string
+  total: number
+  meals: MealEaten[]
+  expenseTotal: number
+}
+
+// How much was spent each day this month (most recent first).
+export function spendByDay(data: AppData, mk = currentMonthKey()): DaySpend[] {
+  const byDate = new Map<string, DaySpend>()
+  const ensure = (date: string) => {
+    if (!byDate.has(date))
+      byDate.set(date, { date, total: 0, meals: [], expenseTotal: 0 })
+    return byDate.get(date)!
+  }
+  for (const m of monthMeals(data, mk)) {
+    const d = ensure(m.eaten_on)
+    d.meals.push(m)
+    d.total += m.cost || 0
+  }
+  for (const e of monthExpenses(data, mk)) {
+    const d = ensure(e.spent_on)
+    d.expenseTotal += e.amount
+    d.total += e.amount
+  }
+  return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date))
+}
+
+// Cost history for one food, pulled from logged meals' itemised costs.
+export interface FoodCostPoint {
+  date: string
+  amount: number
+}
+export function foodCostHistory(data: AppData, foodId: string): FoodCostPoint[] {
+  const points: FoodCostPoint[] = []
+  for (const m of data.meals) {
+    for (const c of m.component_costs ?? []) {
+      if (c.food_id === foodId && c.amount > 0)
+        points.push({ date: m.eaten_on, amount: c.amount })
+    }
+  }
+  return points.sort((a, b) => b.date.localeCompare(a.date))
+}
+
+export function foodAvgCost(data: AppData, foodId: string): number | null {
+  const pts = foodCostHistory(data, foodId)
+  if (!pts.length) return null
+  return Math.round(pts.reduce((s, p) => s + p.amount, 0) / pts.length)
 }
 
 export interface PersonSpend {
@@ -145,22 +203,31 @@ export function spendByPerson(data: AppData): PersonSpend[] {
 }
 
 export function spendByCategory(data: AppData): { category: string; total: number }[] {
-  const exps = monthExpenses(data)
+  const catById = new Map(data.foods.map((f) => [f.id, f.category as string]))
   const map = new Map<string, number>()
-  for (const e of exps) map.set(e.category, (map.get(e.category) ?? 0) + e.amount)
+  const add = (cat: string, amt: number) =>
+    map.set(cat, (map.get(cat) ?? 0) + amt)
+  for (const e of monthExpenses(data)) add(e.category, e.amount)
+  for (const m of monthMeals(data)) {
+    for (const c of m.component_costs ?? []) {
+      const cat = (c.food_id && catById.get(c.food_id)) || 'other'
+      add(cat, c.amount)
+    }
+  }
   return [...map.entries()]
     .map(([category, total]) => ({ category, total }))
+    .filter((x) => x.total > 0)
     .sort((a, b) => b.total - a.total)
 }
 
 export function spendByWeek(data: AppData): { label: string; total: number }[] {
-  const exps = monthExpenses(data)
   const weeks = [0, 0, 0, 0, 0]
-  for (const e of exps) {
-    const day = Number(e.spent_on.slice(8, 10))
-    const w = Math.min(4, Math.floor((day - 1) / 7))
-    weeks[w] += e.amount
+  const bucket = (iso: string, amt: number) => {
+    const day = Number(iso.slice(8, 10))
+    weeks[Math.min(4, Math.floor((day - 1) / 7))] += amt
   }
+  for (const e of monthExpenses(data)) bucket(e.spent_on, e.amount)
+  for (const m of monthMeals(data)) bucket(m.eaten_on, m.cost || 0)
   return weeks.map((total, i) => ({ label: `W${i + 1}`, total }))
 }
 

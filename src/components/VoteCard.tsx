@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, PartyPopper, Trophy, Users } from 'lucide-react'
 import { useApp, mealFromCombo } from '../store/AppContext'
-import type { Vote, VoteOption } from '../types'
+import type { MealCost, Vote, VoteOption } from '../types'
 import { Card } from './ui/Card'
 import { Button } from './ui/Button'
 import { Avatar } from './ui/Avatar'
 import { Confetti } from './Confetti'
 import { TieBreaker } from './TieBreaker'
+import { MealCostSheet } from './MealCostSheet'
+import { foodAvgCost } from '../engine/stats'
 import { formatKES } from '../lib/format'
 import { cn } from '../lib/cn'
 
@@ -22,10 +24,11 @@ const SLOT_EMOJI: Record<string, string> = {
 }
 
 export function VoteCard({ vote }: VoteCardProps) {
-  const { data, currentMemberId, currentMember, castBallot, closeVote, logMeal } =
+  const { data, currentMemberId, currentMember, castBallot, closeVote, logMeal, updateMeal } =
     useApp()
   const [confetti, setConfetti] = useState(false)
   const [breaking, setBreaking] = useState(false)
+  const [costOpen, setCostOpen] = useState(false)
 
   const options = useMemo(
     () => data.voteOptions.filter((o) => o.vote_id === vote.id),
@@ -54,9 +57,27 @@ export function VoteCard({ vote }: VoteCardProps) {
 
   const isClosed = vote.status === 'closed'
   const winner = options.find((o) => o.id === vote.winner_option_id)
+  const loggedMeal = data.meals.find((m) => m.from_vote_id === vote.id)
+
+  // Itemised cost lines for an option, seeded from each food's average/estimate.
+  const costItemsFor = (option: VoteOption) =>
+    ([option.base_id, option.protein_id, option.veg_id].filter(Boolean) as string[])
+      .map((id) => data.foods.find((f) => f.id === id))
+      .filter((f): f is NonNullable<typeof f> => !!f)
+      .map((f) => ({
+        food_id: f.id,
+        label: f.name,
+        suggested: foodAvgCost(data, f.id) ?? f.cost,
+      }))
 
   const finish = async (option: VoteOption) => {
     await closeVote(vote.id, option.id)
+    // Seed itemised costs from estimates; the household can adjust to actuals.
+    const seeded: MealCost[] = costItemsFor(option).map((it) => ({
+      food_id: it.food_id,
+      label: it.label,
+      amount: it.suggested,
+    }))
     await logMeal(
       mealFromCombo(
         option.label,
@@ -69,8 +90,20 @@ export function VoteCard({ vote }: VoteCardProps) {
         option.total_cost,
         currentMemberId,
         vote.id,
+        seeded,
       ),
     )
+    setConfetti(true)
+  }
+
+  const adjustCost = async (costs: MealCost[]) => {
+    if (!loggedMeal) return
+    await updateMeal({
+      ...loggedMeal,
+      component_costs: costs,
+      cost: costs.reduce((s, c) => s + c.amount, 0),
+    })
+    setCostOpen(false)
     setConfetti(true)
   }
 
@@ -185,10 +218,33 @@ export function VoteCard({ vote }: VoteCardProps) {
 
       {isClosed && winner && (
         <div className="mt-3 rounded-2xl bg-mango-100 p-3 text-center dark:bg-mango-500/15">
-          <p className="font-display font-extrabold text-mango-800 dark:text-mango-200">
+          <p className="font-display font-bold text-mango-800 dark:text-mango-200">
             🏆 We're having {winner.label}!
           </p>
+          {loggedMeal && (
+            <button
+              onClick={() => setCostOpen(true)}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 text-sm font-bold text-mango-800 dark:bg-charcoal-900/50 dark:text-mango-200"
+            >
+              🍳 Enter actual cost · {formatKES(loggedMeal.cost)}
+            </button>
+          )}
         </div>
+      )}
+
+      {costOpen && winner && (
+        <MealCostSheet
+          title="What did it cost? 🍳"
+          items={costItemsFor(winner).map((it) => {
+            const existing = loggedMeal?.component_costs?.find(
+              (c) => c.food_id === it.food_id,
+            )
+            return existing ? { ...it, suggested: existing.amount } : it
+          })}
+          confirmLabel="Save costs ✅"
+          onClose={() => setCostOpen(false)}
+          onConfirm={adjustCost}
+        />
       )}
 
       <AnimatePresence>

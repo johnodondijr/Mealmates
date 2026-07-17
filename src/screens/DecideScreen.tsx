@@ -17,8 +17,11 @@ import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { SlotMachine } from '../components/SlotMachine'
 import { Confetti } from '../components/Confetti'
+import { MealCostSheet } from '../components/MealCostSheet'
+import { foodAvgCost } from '../engine/stats'
 import { formatKES } from '../lib/format'
 import { cn } from '../lib/cn'
+import type { Food, MealCost } from '../types'
 
 const SLOTS: { id: MealSlot; label: string; emoji: string }[] = [
   { id: 'breakfast', label: 'Breakfast', emoji: '🌅' },
@@ -43,6 +46,7 @@ export function DecideScreen() {
   const [revealed, setRevealed] = useState(false)
   const [confetti, setConfetti] = useState(false)
   const [logged, setLogged] = useState(false)
+  const [costOpen, setCostOpen] = useState(false)
 
   const pools = useMemo(
     () => ({
@@ -77,7 +81,14 @@ export function DecideScreen() {
     setPresent((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   }
 
-  const confirmEaten = async () => {
+  const costItems = (c: ScoredCombo) =>
+    ([c.base, c.protein, c.veg].filter(Boolean) as Food[]).map((f) => ({
+      food_id: f.id,
+      label: f.name,
+      suggested: foodAvgCost(data, f.id) ?? f.cost,
+    }))
+
+  const logWithCosts = async (costs: MealCost[]) => {
     if (!combo) return
     await logMeal(
       mealFromCombo(
@@ -90,8 +101,11 @@ export function DecideScreen() {
         },
         combo.totalCost,
         currentMemberId,
+        null,
+        costs,
       ),
     )
+    setCostOpen(false)
     setLogged(true)
     setConfetti(true)
   }
@@ -239,7 +253,7 @@ export function DecideScreen() {
                   <RefreshCw size={18} /> Spin again
                 </Button>
                 <Button
-                  onClick={confirmEaten}
+                  onClick={() => setCostOpen(true)}
                   disabled={logged || !comboLabel(combo)}
                   className="flex-1"
                 >
@@ -248,7 +262,7 @@ export function DecideScreen() {
                       <Check size={18} /> Logged!
                     </>
                   ) : (
-                    <>We ate this ✅</>
+                    <>🍳 Cook it up</>
                   )}
                 </Button>
               </div>
@@ -273,6 +287,16 @@ export function DecideScreen() {
           <ChevronRight size={18} />
         </Button>
       </div>
+
+      {costOpen && combo && (
+        <MealCostSheet
+          title="Cook it up 🍳"
+          items={costItems(combo)}
+          confirmLabel="Log meal & costs ✅"
+          onClose={() => setCostOpen(false)}
+          onConfirm={logWithCosts}
+        />
+      )}
     </div>
   )
 }
