@@ -10,6 +10,8 @@ import { newId } from '../lib/id'
 const now = () => new Date().toISOString()
 
 // Deterministic-ish ids for seed foods so pairing rules can reference names.
+// `id` can be overridden when a name would collide across categories (e.g. a
+// breakfast Chapati vs the dinner Chapati base).
 function food(
   name: string,
   category: FoodCategory,
@@ -18,9 +20,10 @@ function food(
   effort: Effort,
   prep_minutes: number,
   suggestable = true,
+  id?: string,
 ): Food {
   return {
-    id: `food_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+    id: id ?? `food_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
     name,
     category,
     emoji,
@@ -75,15 +78,17 @@ export const SEED_FOODS: Food[] = [
   food('Milk / Milo', 'drink', '🥛', 40, 'Easy', 3),
   food('Cocoa', 'drink', '🍫', 40, 'Easy', 5),
 
-  // ---- Breakfast foods ----
+  // ---- Breakfast foods (solids that go with a hot drink) ----
   food('Bread', 'breakfast', '🍞', 50, 'Easy', 2),
   food('Toast', 'breakfast', '🍞', 60, 'Easy', 8),
+  food('Chapati', 'breakfast', '🫓', 80, 'Hard', 45, true, 'food_chapati_bf'),
   food('Mandazi', 'breakfast', '🍩', 70, 'Hard', 45),
   food('Pancakes', 'breakfast', '🥞', 80, 'Medium', 25),
   food('Weetabix', 'breakfast', '🥣', 100, 'Easy', 5),
   food('Boiled Eggs', 'breakfast', '🥚', 60, 'Easy', 12),
   food('Arrowroots', 'breakfast', '🥔', 70, 'Medium', 25),
   food('Sweet Potato', 'breakfast', '🍠', 60, 'Medium', 30),
+  food('Groundnuts', 'breakfast', '🥜', 50, 'Easy', 2),
 
   // ---- Treats / Extras ----
   food('Pilau', 'treat', '🍛', 200, 'Hard', 60),

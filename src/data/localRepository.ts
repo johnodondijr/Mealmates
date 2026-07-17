@@ -15,10 +15,16 @@ import { buildSeedData } from './seed'
 import { newId } from '../lib/id'
 
 const STORAGE_KEY = 'mealmates.data.v1'
+const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
+const CURRENT_SCHEMA = 4
 
-// Backfill fields added in later versions so older saved data keeps working
-// (and no eating history is lost).
+// Matches any drink/liquid so we never let one sit in the solid breakfast reel.
+const LIQUID_HINT = /\b(tea|coffee|uji|porridge|milk|milo|cocoa|juice|smoothie|chocolate)\b/i
+// Legacy combined seed items that mixed a drink with a solid.
+const LEGACY_COMBINED = new Set(['food_tea___bread', 'food_eggs___toast'])
+
+// Field-level backfill — safe to run on every read.
 function migrate(data: AppData): AppData {
   data.wishes ??= []
   data.preferences ??= []
@@ -32,23 +38,37 @@ function migrate(data: AppData): AppData {
     if (!Array.isArray(f.ingredients)) f.ingredients = []
   }
   for (const m of data.meals) {
-    if (!Array.isArray(m.component_costs)) {
-      m.component_costs = []
-    }
-  }
-  // v3: breakfast needs its own drink + breakfast foods. If an older save has
-  // no drink-category foods yet, add the new seed drinks/breakfast items
-  // (without touching or duplicating existing foods).
-  const hasDrink = (data.foods ?? []).some((f) => f.category === 'drink')
-  if (!hasDrink) {
-    const existing = new Set(data.foods.map((f) => f.id))
-    for (const f of buildSeedData().foods) {
-      if ((f.category === 'drink' || f.category === 'breakfast') && !existing.has(f.id)) {
-        data.foods.push(f)
-      }
-    }
+    if (!Array.isArray(m.component_costs)) m.component_costs = []
   }
   return data
+}
+
+// One-time data fixups, guarded by a stored schema version so we don't, e.g.,
+// re-add foods the household deliberately deleted.
+function applyFixups(data: AppData): boolean {
+  const applied = Number(localStorage.getItem(SCHEMA_KEY) || '1')
+  if (applied >= CURRENT_SCHEMA) return false
+
+  // Any liquid that ended up in the breakfast (solid) category becomes a drink,
+  // so breakfast is always a drink + a solid — never liquid + liquid.
+  for (const f of data.foods) {
+    if (f.category === 'breakfast' && LIQUID_HINT.test(f.name)) {
+      f.category = 'drink'
+    }
+  }
+  // Drop legacy combined seed items.
+  data.foods = data.foods.filter((f) => !LEGACY_COMBINED.has(f.id))
+
+  // Add any new seed drinks/breakfast solids that aren't present yet.
+  const existing = new Set(data.foods.map((f) => f.id))
+  for (const f of buildSeedData().foods) {
+    if ((f.category === 'drink' || f.category === 'breakfast') && !existing.has(f.id)) {
+      data.foods.push(f)
+    }
+  }
+
+  localStorage.setItem(SCHEMA_KEY, String(CURRENT_SCHEMA))
+  return true
 }
 
 // localStorage-backed adapter. Cross-tab realtime is handled with
@@ -60,13 +80,17 @@ export class LocalRepository implements Repository {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) {
       const seed = buildSeedData()
+      localStorage.setItem(SCHEMA_KEY, String(CURRENT_SCHEMA))
       this.write(seed, false)
       return seed
     }
     try {
-      return migrate(JSON.parse(raw) as AppData)
+      const data = migrate(JSON.parse(raw) as AppData)
+      if (applyFixups(data)) this.write(data, false)
+      return data
     } catch {
       const seed = buildSeedData()
+      localStorage.setItem(SCHEMA_KEY, String(CURRENT_SCHEMA))
       this.write(seed, false)
       return seed
     }
