@@ -19,6 +19,7 @@ const CAT_EMOJI: Record<string, string> = {
   base: '🍚',
   protein: '🍗',
   veg: '🥬',
+  drink: '🍵',
   breakfast: '🍳',
   treat: '🍛',
   groceries: '🛒',

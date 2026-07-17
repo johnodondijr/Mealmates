@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Check,
@@ -10,12 +10,17 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useApp, mealFromCombo } from '../store/AppContext'
-import { buildCombo, comboLabel } from '../engine/suggest'
+import {
+  buildCombo,
+  comboLabel,
+  SLOT_CATEGORIES,
+  SLOT_REEL_LABELS,
+} from '../engine/suggest'
 import type { MealSlot, ScoredCombo } from '../types'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
-import { SlotMachine } from '../components/SlotMachine'
+import { SlotMachine, type ReelSpec } from '../components/SlotMachine'
 import { Confetti } from '../components/Confetti'
 import { MealCostSheet } from '../components/MealCostSheet'
 import { foodAvgCost } from '../engine/stats'
@@ -48,17 +53,21 @@ export function DecideScreen() {
   const [logged, setLogged] = useState(false)
   const [costOpen, setCostOpen] = useState(false)
 
-  const pools = useMemo(
-    () => ({
-      bases: data.foods.filter((f) => f.category === 'base'),
-      proteins: data.foods.filter((f) => f.category === 'protein'),
-      vegs: data.foods.filter((f) => f.category === 'veg'),
-    }),
-    [data.foods],
-  )
+  // Reels follow the slot: breakfast = Drink + Breakfast, otherwise Base/Protein/Veg.
+  const reelPools = useMemo(() => {
+    const cats = SLOT_CATEGORIES[slot]
+    return cats.map((cat) =>
+      data.foods.filter((f) => f.category === cat && f.suggestable !== false),
+    )
+  }, [data.foods, slot])
+
+  const reels: ReelSpec[] = useMemo(() => {
+    const targets = [combo?.base, combo?.protein, combo?.veg]
+    return reelPools.map((pool, i) => ({ pool, target: targets[i] }))
+  }, [reelPools, combo])
 
   const roll = (spin: boolean) => {
-    const next = buildCombo(data, { budgetMode, presentMemberIds: present })
+    const next = buildCombo(data, { budgetMode, presentMemberIds: present, slot })
     setCombo(next)
     setLogged(false)
     if (spin) {
@@ -110,20 +119,27 @@ export function DecideScreen() {
     setConfetti(true)
   }
 
+  const changeSlot = (s: MealSlot) => {
+    setSlot(s)
+    setCombo(null)
+    setRevealed(false)
+    setLogged(false)
+  }
+
   return (
-    <div className="space-y-5 px-4 pb-4">
+    <div className="space-y-6 px-4 pb-6 pt-4">
       <Confetti fire={confetti} onDone={() => setConfetti(false)} />
 
       {/* Hero */}
-      <div className="pt-2 text-center">
+      <div className="text-center">
         <motion.h2
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="font-display text-3xl font-extrabold text-charcoal-900 dark:text-cream"
+          className="font-display text-[2rem] font-bold leading-tight tracking-tightish text-charcoal-900 dark:text-cream"
         >
           What are we eating? 🤔
         </motion.h2>
-        <p className="mt-1 text-sm font-semibold text-charcoal-800/60 dark:text-cream/50">
+        <p className="mx-auto mt-2 max-w-xs text-sm font-medium text-charcoal-800/60 dark:text-cream/50">
           Hey {currentMember?.name}, let MealMates settle it.
         </p>
       </div>
@@ -133,9 +149,9 @@ export function DecideScreen() {
         {SLOTS.map((s) => (
           <button
             key={s.id}
-            onClick={() => setSlot(s.id)}
+            onClick={() => changeSlot(s.id)}
             className={cn(
-              'rounded-full px-4 py-1.5 font-display text-sm font-bold transition-colors',
+              'rounded-2xl px-4 py-2 font-display text-sm font-semibold transition-colors',
               slot === s.id
                 ? 'bg-paprika-500 text-white shadow-pop'
                 : 'bg-white text-charcoal-800 dark:bg-charcoal-800 dark:text-cream',
@@ -146,27 +162,49 @@ export function DecideScreen() {
         ))}
       </div>
 
-      {/* Who's here */}
+      {/* Who's eating */}
       <Card className="p-4">
-        <p className="mb-2 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
+        <p className="mb-3 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
           Who's eating?
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex justify-around gap-2">
           {data.members.map((m) => {
             const on = present.includes(m.id)
             return (
               <button
                 key={m.id}
                 onClick={() => togglePresent(m.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 transition-all',
-                  on
-                    ? 'bg-avocado-100 ring-2 ring-avocado-400 dark:bg-avocado-500/20'
-                    : 'bg-charcoal-50 opacity-50 dark:bg-charcoal-800',
-                )}
+                className="flex flex-col items-center gap-1.5"
               >
-                <Avatar member={m} size={26} />
-                <span className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
+                <span className="relative">
+                  <span
+                    className={cn(
+                      'block rounded-full transition-all',
+                      on
+                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-charcoal-800'
+                        : 'opacity-40 grayscale',
+                    )}
+                    style={on ? ({ ['--tw-ring-color']: m.color } as CSSProperties) : undefined}
+                  >
+                    <Avatar member={m} size={52} />
+                  </span>
+                  <span
+                    className={cn(
+                      'absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white transition-all dark:border-charcoal-800',
+                      on ? 'bg-avocado-500 text-white' : 'bg-charcoal-200 text-transparent dark:bg-charcoal-950',
+                    )}
+                  >
+                    <Check size={12} strokeWidth={3} />
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    'font-display text-xs font-semibold',
+                    on
+                      ? 'text-charcoal-900 dark:text-cream'
+                      : 'text-charcoal-800/40 dark:text-cream/40',
+                  )}
+                >
                   {m.name}
                 </span>
               </button>
@@ -178,8 +216,8 @@ export function DecideScreen() {
       {/* Slot machine */}
       <Card className="overflow-hidden p-4">
         <div className="mb-3 flex items-center justify-between">
-          <span className="font-display text-sm font-bold text-charcoal-800/60 dark:text-cream/50">
-            🎰 Base · Protein · Veg
+          <span className="font-display text-sm font-semibold text-charcoal-800/60 dark:text-cream/50">
+            🎰 {SLOT_REEL_LABELS[slot].join(' · ')}
           </span>
           <button
             onClick={() =>
@@ -196,14 +234,7 @@ export function DecideScreen() {
           </button>
         </div>
 
-        <SlotMachine
-          bases={pools.bases}
-          proteins={pools.proteins}
-          vegs={pools.vegs}
-          target={combo}
-          spinning={spinning}
-          onAllStopped={onSpinDone}
-        />
+        <SlotMachine reels={reels} spinning={spinning} onAllStopped={onSpinDone} />
 
         {/* Reveal details */}
         <AnimatePresence>

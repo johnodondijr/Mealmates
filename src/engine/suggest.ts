@@ -1,10 +1,27 @@
 import type {
   AppData,
   Food,
+  FoodCategory,
   FoodPreference,
+  MealSlot,
   ScoredCombo,
 } from '../types'
 import { daysSince } from '../lib/format'
+
+// Which food categories make up a meal for each slot. Breakfast is a
+// drink + a breakfast food; lunch/dinner are the classic base + protein + veg.
+export const SLOT_CATEGORIES: Record<MealSlot, FoodCategory[]> = {
+  breakfast: ['drink', 'breakfast'],
+  lunch: ['base', 'protein', 'veg'],
+  dinner: ['base', 'protein', 'veg'],
+}
+
+// Labels for the reels / combo slots, per meal slot.
+export const SLOT_REEL_LABELS: Record<MealSlot, string[]> = {
+  breakfast: ['Drink', 'Breakfast'],
+  lunch: ['Base', 'Protein', 'Veg'],
+  dinner: ['Base', 'Protein', 'Veg'],
+}
 
 // ---- Kenyan classic pairing logic ----
 // Keyed by base food id -> protein/veg ids that pair especially well.
@@ -72,6 +89,7 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
 export interface SuggestOptions {
   budgetMode: boolean
   presentMemberIds: string[]
+  slot?: MealSlot // defaults to dinner (base/protein/veg)
   // exclude specific food ids (e.g. when re-rolling a single slot)
   excludeIds?: string[]
 }
@@ -181,48 +199,48 @@ export function buildCombo(
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
   const exclude = new Set(opts.excludeIds ?? [])
+  const slot = opts.slot ?? 'dinner'
+  const cats = SLOT_CATEGORIES[slot]
 
   const byCat = (cat: Food['category']) =>
     data.foods
       .filter((f) => f.category === cat && f.suggestable !== false)
       .map((f) => scoreFood(f, pref, lastEaten, opts))
 
-  const bases = byCat('base')
-  const proteins = byCat('protein')
-  const vegs = byCat('veg')
+  // Slot 1 (base for lunch/dinner, drink for breakfast).
+  const first = pickWeighted(byCat(cats[0]), exclude)
 
-  const base = pickWeighted(bases, exclude)
-  // (a) Classic pairing bonus applied relative to the chosen base.
-  const pairMap = base ? CLASSIC_PAIRS[base.food.id] ?? {} : {}
-  const boostedProteins = proteins.map((p) => ({
-    ...p,
-    score: p.score + (pairMap[p.food.id] ?? 0),
-  }))
-  const protein = pickWeighted(boostedProteins, exclude)
-  const boostedVegs = vegs.map((v) => ({
-    ...v,
-    score: v.score + (pairMap[v.food.id] ?? 0),
-  }))
-  const veg = pickWeighted(boostedVegs, exclude)
+  // Classic pairings only apply to the base+protein+veg meals.
+  const pairMap =
+    slot !== 'breakfast' && first ? CLASSIC_PAIRS[first.food.id] ?? {} : {}
+
+  const boost = (scores: FoodScore[]) =>
+    scores.map((s) => ({ ...s, score: s.score + (pairMap[s.food.id] ?? 0) }))
+
+  const second = cats[1]
+    ? pickWeighted(boost(byCat(cats[1])), exclude)
+    : null
+  const third = cats[2] ? pickWeighted(boost(byCat(cats[2])), exclude) : null
 
   const reasons: string[] = []
-  if (base && protein && pairMap[protein.food.id]) {
-    reasons.push(`${base.food.name} + ${protein.food.name} is a classic combo ✨`)
+  if (first && second && pairMap[second.food.id]) {
+    reasons.push(`${first.food.name} + ${second.food.name} is a classic combo ✨`)
   }
-  for (const s of [base, protein, veg]) {
+  for (const s of [first, second, third]) {
     if (s) reasons.push(...s.reasons)
   }
   if (opts.budgetMode) reasons.push('Budget mode: kept it easy on the wallet 💸')
 
   const totalCost =
-    (base?.food.cost ?? 0) + (protein?.food.cost ?? 0) + (veg?.food.cost ?? 0)
+    (first?.food.cost ?? 0) + (second?.food.cost ?? 0) + (third?.food.cost ?? 0)
   const score =
-    (base?.score ?? 0) + (protein?.score ?? 0) + (veg?.score ?? 0)
+    (first?.score ?? 0) + (second?.score ?? 0) + (third?.score ?? 0)
 
+  // Map the picks onto the base/protein/veg shape (drink→base, breakfast→protein).
   return {
-    base: base?.food,
-    protein: protein?.food,
-    veg: veg?.food,
+    base: first?.food,
+    protein: second?.food,
+    veg: third?.food,
     score,
     totalCost,
     reasons: [...new Set(reasons)].slice(0, 3),
@@ -274,15 +292,16 @@ export function buildWishCandidates(
   const demand = new Map<string, number>()
   for (const w of todays) demand.set(w.food_id, (demand.get(w.food_id) ?? 0) + 1)
 
+  const cats = SLOT_CATEGORIES[opts.slot ?? 'dinner']
   const wished = (cat: Food['category']) =>
     [...demand.entries()]
       .map(([id, n]) => ({ food: foodById.get(id), n }))
       .filter((x): x is { food: Food; n: number } => !!x.food && x.food.category === cat)
       .sort((a, b) => b.n - a.n)
 
-  const bases = wished('base')
-  const proteins = wished('protein')
-  const vegs = wished('veg')
+  const bases = wished(cats[0])
+  const proteins = cats[1] ? wished(cats[1]) : []
+  const vegs = cats[2] ? wished(cats[2]) : []
 
   const out: ScoredCombo[] = []
   const seen = new Set<string>()

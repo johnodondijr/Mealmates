@@ -18,6 +18,7 @@ const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = [
   { id: 'base', label: 'Bases', emoji: '🍚' },
   { id: 'protein', label: 'Proteins', emoji: '🍗' },
   { id: 'veg', label: 'Veggies', emoji: '🥬' },
+  { id: 'drink', label: 'Drinks', emoji: '🍵' },
   { id: 'breakfast', label: 'Breakfast', emoji: '🍳' },
   { id: 'treat', label: 'Treats', emoji: '🍛' },
 ]

@@ -4,6 +4,7 @@ export type FoodCategory =
   | 'base'
   | 'protein'
   | 'veg'
+  | 'drink'
   | 'breakfast'
   | 'treat'
 

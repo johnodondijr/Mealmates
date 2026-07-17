@@ -71,45 +71,48 @@ function Reel({ pool, target, spinning, delay, onStop }: ReelProps) {
   )
 }
 
+export interface ReelSpec {
+  pool: Food[]
+  target?: Food
+}
+
 interface SlotMachineProps {
-  bases: Food[]
-  proteins: Food[]
-  vegs: Food[]
-  target: { base?: Food; protein?: Food; veg?: Food } | null
+  reels: ReelSpec[]
   spinning: boolean
   onAllStopped?: () => void
 }
 
-export function SlotMachine({
-  bases,
-  proteins,
-  vegs,
-  target,
-  spinning,
-  onAllStopped,
-}: SlotMachineProps) {
+const GRID_COLS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+}
+
+export function SlotMachine({ reels, spinning, onAllStopped }: SlotMachineProps) {
   const stoppedRef = useRef(0)
+  const count = reels.length
 
   useEffect(() => {
     if (spinning) stoppedRef.current = 0
-  }, [spinning, target])
+  }, [spinning, reels])
 
   const handleStop = () => {
     stoppedRef.current += 1
-    if (stoppedRef.current >= 3) onAllStopped?.()
+    if (stoppedRef.current >= count) onAllStopped?.()
   }
 
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <Reel pool={bases} target={target?.base} spinning={spinning} delay={0} onStop={handleStop} />
-      <Reel
-        pool={proteins}
-        target={target?.protein}
-        spinning={spinning}
-        delay={0.25}
-        onStop={handleStop}
-      />
-      <Reel pool={vegs} target={target?.veg} spinning={spinning} delay={0.5} onStop={handleStop} />
+    <div className={`grid gap-2 ${GRID_COLS[count] ?? 'grid-cols-3'}`}>
+      {reels.map((r, i) => (
+        <Reel
+          key={i}
+          pool={r.pool}
+          target={r.target}
+          spinning={spinning}
+          delay={i * 0.25}
+          onStop={handleStop}
+        />
+      ))}
     </div>
   )
 }

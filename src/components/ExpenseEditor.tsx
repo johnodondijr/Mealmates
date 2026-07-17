@@ -16,6 +16,7 @@ const CATEGORIES: { id: Expense['category']; label: string; emoji: string }[] = 
   { id: 'protein', label: 'Protein', emoji: '🍗' },
   { id: 'base', label: 'Base', emoji: '🍚' },
   { id: 'veg', label: 'Veg', emoji: '🥬' },
+  { id: 'drink', label: 'Drink', emoji: '🍵' },
   { id: 'treat', label: 'Treat', emoji: '🍛' },
   { id: 'other', label: 'Other', emoji: '💰' },
 ]

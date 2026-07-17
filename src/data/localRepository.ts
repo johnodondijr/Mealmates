@@ -36,6 +36,18 @@ function migrate(data: AppData): AppData {
       m.component_costs = []
     }
   }
+  // v3: breakfast needs its own drink + breakfast foods. If an older save has
+  // no drink-category foods yet, add the new seed drinks/breakfast items
+  // (without touching or duplicating existing foods).
+  const hasDrink = (data.foods ?? []).some((f) => f.category === 'drink')
+  if (!hasDrink) {
+    const existing = new Set(data.foods.map((f) => f.id))
+    for (const f of buildSeedData().foods) {
+      if ((f.category === 'drink' || f.category === 'breakfast') && !existing.has(f.id)) {
+        data.foods.push(f)
+      }
+    }
+  }
   return data
 }
 

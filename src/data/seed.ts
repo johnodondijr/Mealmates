@@ -68,13 +68,22 @@ export const SEED_FOODS: Food[] = [
   food('Terere', 'veg', '🌿', 60, 'Medium', 20),
   food('Avocado', 'veg', '🥑', 40, 'Easy', 2),
 
-  // ---- Breakfast ----
-  food('Tea + Bread', 'breakfast', '🍞', 60, 'Easy', 10),
-  food('Uji', 'breakfast', '🥣', 40, 'Easy', 15),
-  food('Pancakes', 'breakfast', '🥞', 80, 'Medium', 25),
+  // ---- Breakfast drinks ----
+  food('Tea', 'drink', '🍵', 20, 'Easy', 10),
+  food('Coffee', 'drink', '☕', 30, 'Easy', 8),
+  food('Uji (Porridge)', 'drink', '🥣', 30, 'Easy', 15),
+  food('Milk / Milo', 'drink', '🥛', 40, 'Easy', 3),
+  food('Cocoa', 'drink', '🍫', 40, 'Easy', 5),
+
+  // ---- Breakfast foods ----
+  food('Bread', 'breakfast', '🍞', 50, 'Easy', 2),
+  food('Toast', 'breakfast', '🍞', 60, 'Easy', 8),
   food('Mandazi', 'breakfast', '🍩', 70, 'Hard', 45),
-  food('Eggs + Toast', 'breakfast', '🍳', 90, 'Easy', 15),
-  food('Weetabix', 'breakfast', '🥛', 100, 'Easy', 5),
+  food('Pancakes', 'breakfast', '🥞', 80, 'Medium', 25),
+  food('Weetabix', 'breakfast', '🥣', 100, 'Easy', 5),
+  food('Boiled Eggs', 'breakfast', '🥚', 60, 'Easy', 12),
+  food('Arrowroots', 'breakfast', '🥔', 70, 'Medium', 25),
+  food('Sweet Potato', 'breakfast', '🍠', 60, 'Medium', 30),
 
   // ---- Treats / Extras ----
   food('Pilau', 'treat', '🍛', 200, 'Hard', 60),
