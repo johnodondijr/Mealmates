@@ -5,6 +5,7 @@ import { useApp } from '../store/AppContext'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
+import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { VoteCard } from '../components/VoteCard'
 import { CreateVoteSheet } from '../components/CreateVoteSheet'
 import { chefWinCounts, chefFavoriteId } from '../engine/stats'
@@ -22,14 +23,10 @@ export function VoteScreen() {
 
   return (
     <div className="px-4 pb-4">
-      <div className="pt-2">
-        <h2 className="font-display text-2xl font-extrabold text-charcoal-900 dark:text-cream">
-          Meal Votes 🗳️
-        </h2>
-        <p className="text-sm font-semibold text-charcoal-800/60 dark:text-cream/50">
-          Pass the phone or vote on your own device — live.
-        </p>
-      </div>
+      <ScreenHeader
+        title="Meal Votes"
+        subtitle="Pass the phone or vote on your own device — live."
+      />
 
       <Leaderboard />
 

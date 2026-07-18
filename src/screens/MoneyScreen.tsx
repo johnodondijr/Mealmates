@@ -5,6 +5,7 @@ import { useApp } from '../store/AppContext'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { CountUp } from '../components/ui/CountUp'
+import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { ExpenseEditor } from '../components/ExpenseEditor'
 import {
   spendByCategory,
@@ -56,14 +57,7 @@ export function MoneyScreen() {
 
   return (
     <div className="px-4 pb-4">
-      <div className="pt-2">
-        <h2 className="font-display text-2xl font-bold tracking-tightish text-charcoal-900 dark:text-cream">
-          Food Money 💸
-        </h2>
-        <p className="text-sm font-medium text-charcoal-800/60 dark:text-cream/50">
-          How much we spend each day.
-        </p>
-      </div>
+      <ScreenHeader title="Money" subtitle="What the house spends, day by day." />
 
       {/* Budget bar */}
       <Card className="mt-3 p-5">

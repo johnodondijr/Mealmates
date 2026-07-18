@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { CountUp } from '../components/ui/CountUp'
+import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { LogMealSheet } from '../components/LogMealSheet'
 import {
   buildWrapped,
@@ -38,29 +39,29 @@ export function StatsScreen() {
 
   return (
     <div className="px-4 pb-4">
-      <div className="pt-2">
-        <h2 className="font-display text-2xl font-extrabold text-charcoal-900 dark:text-cream">
-          History & Stats 📊
-        </h2>
-        <p className="text-sm font-semibold text-charcoal-800/60 dark:text-cream/50">
-          What the house has been eating.
-        </p>
-      </div>
+      <ScreenHeader title="History" subtitle="What the house has been eating." />
 
       {/* Wrapped card */}
-      <Card className="mt-3 overflow-hidden">
-        <div className="bg-gradient-to-br from-paprika-500 via-mango-500 to-[#C2478E] p-5 text-white">
-          <div className="flex items-center justify-between">
+      <Card className="mt-4 overflow-hidden">
+        <div className="relative bg-gradient-to-b from-paprika-500 to-paprika-700 p-5 text-white">
+          {/* soft warm highlight, not a rainbow */}
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full opacity-40 blur-2xl"
+            style={{ background: 'radial-gradient(circle, #FFC44D 0%, transparent 70%)' }}
+          />
+          <div className="relative flex items-center justify-between">
             <div>
-              <p className="font-display text-xs font-bold uppercase tracking-widest text-white/80">
+              <p className="font-display text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
                 Household Wrapped
               </p>
-              <p className="font-display text-2xl font-extrabold">{wrapped.monthLabel}</p>
+              <p className="mt-0.5 font-display text-2xl font-extrabold tracking-[-0.01em]">
+                {wrapped.monthLabel}
+              </p>
             </div>
-            <span className="text-4xl">🎉</span>
+            <span className="text-3xl opacity-90">🎉</span>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
+          <div className="relative mt-4 grid grid-cols-2 gap-2.5">
             <WrapTile emoji="🏆" label="Top meal" value={wrapped.topMeal?.label ?? '—'} />
             <WrapTile emoji="💸" label="Total spent" value={formatKES(wrapped.totalSpent)} />
             <WrapTile
@@ -79,7 +80,7 @@ export function StatsScreen() {
 
           <button
             onClick={() => shareWrapped(wrapped, data.settings.household_name)}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white/95 py-3 font-display font-extrabold text-paprika-600 active:scale-95"
+            className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 font-display font-bold text-paprika-600 shadow-sm transition-transform active:scale-[0.98]"
           >
             <Share2 size={18} /> Share to WhatsApp
           </button>

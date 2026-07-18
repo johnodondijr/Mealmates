@@ -373,9 +373,9 @@ export function comboLabel(c: {
 }
 
 // Build vote candidates from what people said they *want* today.
-// Each distinct wished base is paired with the most-wished protein + veg,
-// so everyone's cravings show up as options. Falls back to the engine if
-// there aren't enough wishes to form 2+ combos.
+// Each wished food anchors a candidate; the rest of the plate is completed with
+// the most-wanted foods that also keep the meal balanced (a dry starch gets a
+// saucy protein/veg, and every option has at least one saucy element).
 export function buildWishCandidates(
   data: AppData,
   wishedOn: string,
@@ -384,70 +384,81 @@ export function buildWishCandidates(
 ): ScoredCombo[] {
   const todays = data.wishes.filter((w) => w.wished_on === wishedOn)
   const foodById = new Map(data.foods.map((f) => [f.id, f]))
-
-  // How many people want each food.
   const demand = new Map<string, number>()
   for (const w of todays) demand.set(w.food_id, (demand.get(w.food_id) ?? 0) + 1)
 
-  const cats = SLOT_CATEGORIES[opts.slot ?? 'dinner']
-  const wished = (cat: Food['category']) =>
-    [...demand.entries()]
-      .map(([id, n]) => ({ food: foodById.get(id), n }))
-      .filter((x): x is { food: Food; n: number } => !!x.food && x.food.category === cat)
-      .sort((a, b) => b.n - a.n)
+  const [baseCat, proteinCat, vegCat] = SLOT_CATEGORIES[opts.slot ?? 'dinner']
+  const poolOf = (cat?: FoodCategory) =>
+    cat ? data.foods.filter((f) => f.category === cat && f.suggestable !== false) : []
 
-  const bases = wished(cats[0])
-  const proteins = cats[1] ? wished(cats[1]) : []
-  const vegs = cats[2] ? wished(cats[2]) : []
-
-  const out: ScoredCombo[] = []
-  const seen = new Set<string>()
-  const topProtein = proteins[0]?.food
-  const topVeg = vegs[0]?.food
-
-  // One option per wished base, completed with the crowd's top protein/veg.
-  for (const b of bases) {
-    const protein = topProtein
-    const veg = topVeg
-    const key = `${b.food.id}|${protein?.id}|${veg?.id}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const totalCost =
-      b.food.cost + (protein?.cost ?? 0) + (veg?.cost ?? 0)
-    out.push({
-      base: b.food,
-      protein,
-      veg,
-      score: b.n,
-      totalCost,
-      reasons: [`${b.n} wanted ${b.food.name} today 🙌`],
-    })
-    if (out.length >= count) break
+  // How well an item completes a plate: wanted foods win, and a dry base pulls
+  // for a saucy partner (and pushes away another dry one).
+  const fit = (item: Food, base?: Food) => {
+    let s = (demand.get(item.id) ?? 0) * 3
+    if (base?.texture === 'dry') {
+      if (item.texture === 'saucy') s += 2.5
+      else if (item.texture === 'dry') s -= 1.5
+    }
+    return s
+  }
+  const best = (cat: FoodCategory | undefined, base?: Food, saucyOnly = false) => {
+    const pool = poolOf(cat).filter((f) => !saucyOnly || f.texture === 'saucy')
+    if (pool.length === 0) return undefined
+    return [...pool].sort((a, b) => fit(b, base) - fit(a, base))[0]
   }
 
-  // If proteins were wished but no bases, offer protein-led options too.
-  if (out.length < count && bases.length === 0) {
-    for (const p of proteins) {
-      const key = `|${p.food.id}|${topVeg?.id}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push({
-        base: undefined,
-        protein: p.food,
-        veg: topVeg,
-        score: p.n,
-        totalCost: p.food.cost + (topVeg?.cost ?? 0),
-        reasons: [`${p.n} wanted ${p.food.name} today 🙌`],
-      })
-      if (out.length >= count) break
+  const build = (anchor: Food): ScoredCombo => {
+    let base = anchor.category === baseCat ? anchor : best(baseCat)
+    let protein = anchor.category === proteinCat ? anchor : best(proteinCat, base)
+    let veg = anchor.category === vegCat ? anchor : best(vegCat, base)
+
+    // Guarantee at least one saucy element so it's never an all-dry plate.
+    const items = [base, protein, veg].filter(Boolean) as Food[]
+    if (items.length && !items.some((f) => f.texture === 'saucy')) {
+      if (anchor.category !== vegCat) veg = best(vegCat, base, true) ?? veg
+      else if (anchor.category !== proteinCat) protein = best(proteinCat, base, true) ?? protein
+    }
+
+    const n = demand.get(anchor.id) ?? 1
+    return {
+      base,
+      protein,
+      veg,
+      score: n,
+      totalCost: (base?.cost ?? 0) + (protein?.cost ?? 0) + (veg?.cost ?? 0),
+      reasons: [`${n} wanted ${anchor.name} today 🙌`],
     }
   }
 
-  // Top up with engine suggestions if we still don't have 2 options.
+  // Anchor on wished foods, bases first, then proteins, then veg — most-wanted
+  // first within each.
+  const rank = (f: Food) =>
+    f.category === baseCat ? 0 : f.category === proteinCat ? 1 : 2
+  const anchors = [...demand.keys()]
+    .map((id) => foodById.get(id))
+    .filter(
+      (f): f is Food =>
+        !!f && [baseCat, proteinCat, vegCat].includes(f.category),
+    )
+    .sort(
+      (a, b) => rank(a) - rank(b) || (demand.get(b.id) ?? 0) - (demand.get(a.id) ?? 0),
+    )
+
+  const out: ScoredCombo[] = []
+  const seen = new Set<string>()
+  for (const anchor of anchors) {
+    const c = build(anchor)
+    const key = comboSignature(c)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(c)
+    if (out.length >= count) break
+  }
+
+  // Top up with the balanced engine if we still don't have 2 options.
   if (out.length < 2) {
-    const filler = buildCandidates(data, opts, count - out.length)
-    for (const f of filler) {
-      const key = `${f.base?.id}|${f.protein?.id}|${f.veg?.id}`
+    for (const f of buildCandidates(data, opts, count - out.length)) {
+      const key = comboSignature(f)
       if (seen.has(key)) continue
       seen.add(key)
       out.push(f)

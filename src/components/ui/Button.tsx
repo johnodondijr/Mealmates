@@ -18,9 +18,9 @@ interface ButtonProps {
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-paprika-500 text-white shadow-pop hover:bg-paprika-600 active:bg-paprika-700',
+    'bg-gradient-to-b from-paprika-400 to-paprika-500 text-white shadow-pop hover:from-paprika-500 hover:to-paprika-600 active:to-paprika-700',
   secondary:
-    'bg-white text-charcoal-900 border border-charcoal-100 shadow-card hover:bg-charcoal-50 dark:bg-charcoal-800 dark:text-cream dark:border-charcoal-800',
+    'bg-white text-charcoal-900 ring-1 ring-charcoal-900/[0.06] shadow-card hover:bg-charcoal-50 dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.08] dark:hover:bg-charcoal-800/70',
   ghost:
     'bg-transparent text-charcoal-800 hover:bg-black/5 dark:text-cream dark:hover:bg-white/10',
   danger: 'bg-red-500 text-white hover:bg-red-600',

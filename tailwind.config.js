@@ -55,8 +55,11 @@ export default {
         },
       },
       boxShadow: {
-        pop: '0 10px 30px -8px rgba(244, 90, 40, 0.35)',
-        card: '0 6px 24px -10px rgba(28, 24, 21, 0.25)',
+        // Layered, restrained elevation — a tight contact shadow plus a soft
+        // ambient one, rather than one big blur.
+        pop: '0 1px 2px rgba(180, 52, 16, 0.20), 0 10px 24px -10px rgba(244, 90, 40, 0.45)',
+        card: '0 1px 2px rgba(28, 24, 21, 0.05), 0 12px 28px -18px rgba(28, 24, 21, 0.22)',
+        sheet: '0 -8px 40px -12px rgba(28, 24, 21, 0.28)',
       },
       keyframes: {
         wiggle: {

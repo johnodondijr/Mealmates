@@ -16,7 +16,7 @@ export function Card({ children, className, onClick, tappable }: CardProps) {
       onClick={onClick}
       whileTap={interactive ? { scale: 0.98 } : undefined}
       className={cn(
-        'rounded-3xl bg-white shadow-card dark:bg-charcoal-800/80 dark:backdrop-blur',
+        'rounded-3xl bg-white shadow-card ring-1 ring-charcoal-900/[0.04] dark:bg-charcoal-800/70 dark:ring-white/[0.06] dark:backdrop-blur',
         interactive && 'cursor-pointer',
         className,
       )}

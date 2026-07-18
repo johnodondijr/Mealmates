@@ -7,6 +7,7 @@ import type { Food, FoodCategory, MealSlot } from '../types'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
+import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { FoodEditor } from '../components/FoodEditor'
 import { buildWishCandidates } from '../engine/suggest'
 import { buildVoteFromCombos } from '../lib/buildVote'
@@ -112,15 +113,14 @@ export function FoodsScreen() {
 
   return (
     <div className="px-4 pb-4">
-      <div className="pt-2">
-        <h2 className="font-display text-2xl font-bold tracking-tightish text-charcoal-900 dark:text-cream">
-          Food Library 🍲
-        </h2>
-        <p className="text-sm font-medium text-charcoal-800/60 dark:text-cream/50">
-          Tap a food to say <b>“I want this today”</b>. Use the icons to love ❤️,
-          refuse 🚫, or edit.
-        </p>
-      </div>
+      <ScreenHeader
+        title="Food Library"
+        subtitle={
+          <>
+            Tap a food to pick it for today. Use the icons to love, refuse or edit.
+          </>
+        }
+      />
 
       {/* Today's picks CTA */}
       {totalWishesToday > 0 && (
