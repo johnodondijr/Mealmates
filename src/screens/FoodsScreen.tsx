@@ -37,6 +37,13 @@ const PLATE_ORDER: FoodCategory[] = [
 // Categories you can stack several of on one plate.
 const MULTI = new Set<FoodCategory>(['treat', 'fruit'])
 
+// After picking a main component, jump to the next one to build a full plate.
+const NEXT_MAIN: Partial<Record<FoodCategory, FoodCategory>> = {
+  base: 'protein',
+  protein: 'veg',
+  veg: 'fruit',
+}
+
 interface Fly {
   id: number
   emoji: string
@@ -104,10 +111,18 @@ export function FoodsScreen() {
       // Single slot — replace any existing food of the same category.
       return [...prev.filter((f) => f.category !== food.category), food]
     })
-    if (!onPlate && !reduce) {
-      const id = Math.random()
-      setFlying((f) => [...f, { id, emoji: food.emoji, x: e.clientX, y: e.clientY }])
-      setTimeout(() => setFlying((f) => f.filter((i) => i.id !== id)), 650)
+    if (!onPlate) {
+      if (!reduce) {
+        const id = Math.random()
+        setFlying((f) => [...f, { id, emoji: food.emoji, x: e.clientX, y: e.clientY }])
+        setTimeout(() => setFlying((f) => f.filter((i) => i.id !== id)), 650)
+      }
+      // Auto-advance through the main courses (base → protein → veg → fruit)
+      // when browsing by tab, so building a plate flows.
+      const next = NEXT_MAIN[food.category]
+      if (next && !query.trim() && cat === food.category) {
+        setTimeout(() => setCat(next), reduce ? 0 : 260)
+      }
     }
   }
 

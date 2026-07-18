@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
+import { RefreshCw } from 'lucide-react'
 import type { Food } from '../types'
 import { cn } from '../lib/cn'
 
@@ -12,6 +13,7 @@ interface ReelProps {
   spinning: boolean
   delay: number
   onStop?: () => void
+  onSwap?: () => void
 }
 
 function buildStrip(pool: Food[], target: Food | undefined): Food[] {
@@ -24,7 +26,7 @@ function buildStrip(pool: Food[], target: Food | undefined): Food[] {
   return strip
 }
 
-function Reel({ pool, target, label, spinning, delay, onStop }: ReelProps) {
+function Reel({ pool, target, label, spinning, delay, onStop, onSwap }: ReelProps) {
   const reduce = useReducedMotion()
   const strip = useMemo(
     () => buildStrip(pool, target),
@@ -63,7 +65,6 @@ function Reel({ pool, target, label, spinning, delay, onStop }: ReelProps) {
               ? { duration: 1.7 + delay, ease: [0.12, 0.7, 0.2, 1] }
               : { duration: 0 }
           }
-          // Only report a stop for a real spin — avoids firing on mount / rest.
           onAnimationComplete={() => {
             if (spinning) onStop?.()
           }}
@@ -92,6 +93,17 @@ function Reel({ pool, target, label, spinning, delay, onStop }: ReelProps) {
         </motion.div>
       )}
 
+      {/* Swap just this part */}
+      {landed && onSwap && (
+        <button
+          onClick={onSwap}
+          aria-label={`Swap ${label}`}
+          className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-charcoal-900/85 text-white shadow-pop active:scale-90 dark:bg-cream dark:text-charcoal-950"
+        >
+          <RefreshCw size={14} strokeWidth={2.6} />
+        </button>
+      )}
+
       {/* soft top/bottom fades to sell the reel depth */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-black/[0.06] to-transparent dark:from-black/40" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-black/[0.06] to-transparent dark:from-black/40" />
@@ -103,12 +115,13 @@ export interface ReelSpec {
   pool: Food[]
   target?: Food
   label: string
+  spinning: boolean
 }
 
 interface SlotMachineProps {
   reels: ReelSpec[]
-  spinning: boolean
-  onAllStopped?: () => void
+  onReelStopped?: (index: number) => void
+  onSwap?: (index: number) => void
 }
 
 const GRID_COLS: Record<number, string> = {
@@ -117,19 +130,8 @@ const GRID_COLS: Record<number, string> = {
   3: 'grid-cols-3',
 }
 
-export function SlotMachine({ reels, spinning, onAllStopped }: SlotMachineProps) {
-  const stoppedRef = useRef(0)
+export function SlotMachine({ reels, onReelStopped, onSwap }: SlotMachineProps) {
   const count = reels.length
-
-  useEffect(() => {
-    if (spinning) stoppedRef.current = 0
-  }, [spinning, reels])
-
-  const handleStop = () => {
-    stoppedRef.current += 1
-    if (stoppedRef.current >= count) onAllStopped?.()
-  }
-
   return (
     <div className={`grid gap-2 ${GRID_COLS[count] ?? 'grid-cols-3'}`}>
       {reels.map((r, i) => (
@@ -138,9 +140,10 @@ export function SlotMachine({ reels, spinning, onAllStopped }: SlotMachineProps)
           pool={r.pool}
           target={r.target}
           label={r.label}
-          spinning={spinning}
+          spinning={r.spinning}
           delay={i * 0.28}
-          onStop={handleStop}
+          onStop={() => onReelStopped?.(i)}
+          onSwap={onSwap ? () => onSwap(i) : undefined}
         />
       ))}
     </div>

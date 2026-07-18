@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, PiggyBank, RefreshCw, Sparkles } from 'lucide-react'
 import { useApp, mealFromCombo } from '../store/AppContext'
@@ -6,6 +6,7 @@ import {
   buildCombo,
   comboLabel,
   comboSignature,
+  rerollComponent,
   SLOT_CATEGORIES,
   SLOT_REEL_LABELS,
 } from '../engine/suggest'
@@ -43,13 +44,15 @@ export function DecideScreen() {
   const [slot, setSlot] = useState<MealSlot>('dinner')
   const [present, setPresent] = useState<string[]>(() => data.members.map((m) => m.id))
   const [combo, setCombo] = useState<ScoredCombo | null>(null)
-  const [spinning, setSpinning] = useState(false)
+  const [spinningSlots, setSpinningSlots] = useState<boolean[]>([])
   const [revealed, setRevealed] = useState(false)
   const [confetti, setConfetti] = useState(false)
   const [logged, setLogged] = useState(false)
   const [costOpen, setCostOpen] = useState(false)
   // Signatures of the last few results so a re-spin doesn't repeat them.
   const [recentSigs, setRecentSigs] = useState<string[]>([])
+
+  const spinning = spinningSlots.some(Boolean)
 
   // Reels follow the slot: breakfast = Drink + Breakfast, otherwise Base/Protein/Veg.
   const reelPools = useMemo(() => {
@@ -64,34 +67,62 @@ export function DecideScreen() {
   const reels: ReelSpec[] = useMemo(() => {
     const targets = [combo?.base, combo?.protein, combo?.veg]
     const labels = SLOT_REEL_LABELS[slot]
-    return reelPools.map((pool, i) => ({ pool, target: targets[i], label: labels[i] }))
-  }, [reelPools, combo, slot])
+    return reelPools.map((pool, i) => ({
+      pool,
+      target: targets[i],
+      label: labels[i],
+      spinning: spinningSlots[i] ?? false,
+    }))
+  }, [reelPools, combo, slot, spinningSlots])
 
-  const roll = (spin: boolean) => {
+  // Reveal once every reel that was spinning has settled.
+  useEffect(() => {
+    if (combo && spinningSlots.length > 0 && spinningSlots.every((s) => !s) && !revealed) {
+      setRevealed(true)
+      setConfetti(true)
+    }
+  }, [spinningSlots, combo, revealed])
+
+  // Full spin — all reels.
+  const roll = () => {
     const next = buildCombo(data, {
       budgetMode,
       presentMemberIds: present,
       slot,
       avoidSignatures: recentSigs,
     })
-    // Remember the last 5 results so consecutive spins keep changing.
     setRecentSigs((prev) => [comboSignature(next), ...prev].slice(0, 5))
     setCombo(next)
     setLogged(false)
-    if (spin) {
-      setRevealed(false)
-      setSpinning(true)
-    } else {
-      setSpinning(false)
-      setRevealed(true)
-      setConfetti(true)
-    }
+    setRevealed(false)
+    setSpinningSlots(reelPools.map(() => true))
   }
 
-  const onSpinDone = () => {
-    setSpinning(false)
-    setRevealed(true)
-    setConfetti(true)
+  // Re-spin just one slot, keeping the rest.
+  const swapSlot = (i: number) => {
+    if (!combo) return
+    const newFood = rerollComponent(
+      data,
+      { budgetMode, presentMemberIds: present, slot },
+      { base: combo.base, protein: combo.protein, veg: combo.veg },
+      i,
+    )
+    if (!newFood) return
+    setCombo((c) => {
+      if (!c) return c
+      const fields = ['base', 'protein', 'veg'] as const
+      const updated = { ...c, [fields[i]]: newFood } as ScoredCombo
+      updated.totalCost =
+        (updated.base?.cost ?? 0) + (updated.protein?.cost ?? 0) + (updated.veg?.cost ?? 0)
+      updated.reasons = ['Swapped one part — kept the rest 🔄']
+      return updated
+    })
+    setLogged(false)
+    setSpinningSlots((s) => s.map((v, idx) => (idx === i ? true : v)))
+  }
+
+  const onReelStopped = (i: number) => {
+    setSpinningSlots((s) => s.map((v, idx) => (idx === i ? false : v)))
   }
 
   const togglePresent = (id: string) => {
@@ -130,6 +161,7 @@ export function DecideScreen() {
   const changeSlot = (s: MealSlot) => {
     setSlot(s)
     setCombo(null)
+    setSpinningSlots([])
     setRevealed(false)
     setLogged(false)
   }
@@ -226,7 +258,11 @@ export function DecideScreen() {
           </button>
         </div>
 
-        <SlotMachine reels={reels} spinning={spinning} onAllStopped={onSpinDone} />
+        <SlotMachine
+          reels={reels}
+          onReelStopped={onReelStopped}
+          onSwap={revealed && !spinning ? swapSlot : undefined}
+        />
 
         {/* Reveal details */}
         <AnimatePresence>
@@ -244,6 +280,11 @@ export function DecideScreen() {
                 <p className="mt-1 text-center text-xs font-semibold uppercase tracking-wide text-charcoal-800/40 dark:text-cream/40">
                   {SLOT_REEL_LABELS[slot].join(' · ')}
                 </p>
+                {comboLabel(combo) && (
+                  <p className="mt-1 text-center text-[0.72rem] font-medium text-charcoal-800/45 dark:text-cream/40">
+                    Tap ↻ on a reel to swap just that part
+                  </p>
+                )}
 
                 {comboLabel(combo) && (
                   <div className="mt-3 flex gap-2">
@@ -271,7 +312,7 @@ export function DecideScreen() {
               </div>
 
               <div className="mt-3 flex gap-2">
-                <Button variant="secondary" onClick={() => roll(true)} className="flex-1">
+                <Button variant="secondary" onClick={roll} className="flex-1">
                   <RefreshCw size={18} /> Spin again
                 </Button>
                 <Button
@@ -299,7 +340,7 @@ export function DecideScreen() {
         <div>
           <Button
             size="lg"
-            onClick={() => roll(true)}
+            onClick={roll}
             disabled={spinning}
             fullWidth
             className="py-4 text-lg"

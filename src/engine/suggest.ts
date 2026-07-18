@@ -289,6 +289,37 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   return pool[pool.length - 1]
 }
 
+// Re-roll a single slot of a combo, keeping the others. index 0/1/2 maps to the
+// slot's categories (base/protein/veg for a main meal). Returns a *different*
+// food that still pairs with what's kept.
+export function rerollComponent(
+  data: AppData,
+  opts: SuggestOptions,
+  current: { base?: Food; protein?: Food; veg?: Food },
+  index: number,
+): Food | undefined {
+  const cats = SLOT_CATEGORIES[opts.slot ?? 'dinner']
+  const cat = cats[index]
+  if (!cat) return undefined
+
+  const pref = indexPreferences(data.preferences)
+  const lastEaten = lastEatenIndex(data)
+  const currentFood = [current.base, current.protein, current.veg][index]
+  const exclude = new Set([currentFood?.id].filter(Boolean) as string[])
+
+  // Pair against the kept base (unless we're re-rolling the base itself).
+  const base = index === 0 ? undefined : current.base
+  const pairMap =
+    base && opts.slot !== 'breakfast' ? CLASSIC_PAIRS[base.id] ?? {} : {}
+
+  const scores = data.foods
+    .filter((f) => f.category === cat && f.suggestable !== false && f.available !== false)
+    .map((f) => scoreFood(f, pref, lastEaten, opts))
+    .map((s) => ({ ...s, score: s.score + (pairMap[s.food.id] ?? 0) }))
+
+  return pickWeighted(scores, exclude)?.food ?? currentFood
+}
+
 function generateCombo(
   data: AppData,
   opts: SuggestOptions,
