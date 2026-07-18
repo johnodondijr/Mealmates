@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, Sparkles, Trash2, TrendingUp, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
-import type { Effort, Food, FoodCategory, Ingredient } from '../types'
+import type { Effort, Food, FoodCategory, Ingredient, Texture } from '../types'
 import { Sheet } from './ui/Sheet'
 import { Button } from './ui/Button'
 import { newId } from '../lib/id'
@@ -26,6 +26,12 @@ const CATEGORIES: { id: FoodCategory; label: string }[] = [
 
 const EFFORTS: Effort[] = ['Easy', 'Medium', 'Hard']
 
+const TEXTURES: { id: Texture; label: string }[] = [
+  { id: 'dry', label: '🍞 Dry' },
+  { id: 'saucy', label: '🥘 Saucy' },
+  { id: 'neutral', label: '⚖️ Neutral' },
+]
+
 interface FoodEditorProps {
   food: Food | null // null = new
   defaultCategory: FoodCategory
@@ -42,6 +48,7 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
   const [cost, setCost] = useState(String(food?.cost ?? 100))
   const [effort, setEffort] = useState<Effort>(food?.effort ?? 'Medium')
   const [prep, setPrep] = useState(String(food?.prep_minutes ?? 30))
+  const [texture, setTexture] = useState<Texture>(food?.texture ?? 'neutral')
   const [suggestable, setSuggestable] = useState(food?.suggestable ?? true)
   const [ingredients, setIngredients] = useState<IngredientDraft[]>(
     () => food?.ingredients ?? [],
@@ -73,6 +80,7 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
       cost: Number(cost) || 0,
       effort,
       prep_minutes: Number(prep) || 0,
+      texture,
       suggestable,
       ingredients: ingredients
         .filter((i) => i.name.trim())
@@ -204,6 +212,21 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
               </Chip>
             ))}
           </div>
+        </div>
+
+        {/* Texture — powers balanced pairing (dry ↔ saucy) */}
+        <div>
+          <Label>Texture</Label>
+          <div className="flex gap-2">
+            {TEXTURES.map((t) => (
+              <Chip key={t.id} active={texture === t.id} onClick={() => setTexture(t.id)}>
+                {t.label}
+              </Chip>
+            ))}
+          </div>
+          <p className="mt-1 text-xs font-medium text-charcoal-800/45 dark:text-cream/40">
+            Dry foods (ugali, chapati) get paired with a saucy protein or veg.
+          </p>
         </div>
 
         {/* Ingredients */}

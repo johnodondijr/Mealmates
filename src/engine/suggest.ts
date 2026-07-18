@@ -6,7 +6,7 @@ import type {
   MealSlot,
   ScoredCombo,
 } from '../types'
-import { daysSince } from '../lib/format'
+import { daysSince, todayISO } from '../lib/format'
 
 // Which food categories make up a meal for each slot. Breakfast is a
 // drink + a breakfast food; lunch/dinner are the classic base + protein + veg.
@@ -92,6 +92,25 @@ export interface SuggestOptions {
   slot?: MealSlot // defaults to dinner (base/protein/veg)
   // exclude specific food ids (e.g. when re-rolling a single slot)
   excludeIds?: string[]
+  // Whole-combo signatures to avoid repeating (recent spins on this screen).
+  avoidSignatures?: string[]
+}
+
+// A stable signature for a combo so we can detect repeats.
+export function comboSignature(c: {
+  base?: { id: string } | null
+  protein?: { id: string } | null
+  veg?: { id: string } | null
+}): string {
+  return `${c.base?.id ?? ''}|${c.protein?.id ?? ''}|${c.veg?.id ?? ''}`
+}
+
+function mealSignature(m: {
+  base_id: string | null
+  protein_id: string | null
+  veg_id: string | null
+}): string {
+  return `${m.base_id ?? ''}|${m.protein_id ?? ''}|${m.veg_id ?? ''}`
 }
 
 interface PrefIndex {
@@ -192,12 +211,90 @@ function pickWeighted(scores: FoodScore[], exclude: Set<string>): FoodScore | nu
   return pool[pool.length - 1]
 }
 
-export function buildCombo(
-  data: AppData,
-  opts: SuggestOptions,
-): ScoredCombo {
+// Moisture/texture balance for a lunch/dinner combo: a dry starch wants a
+// saucy protein or veg — never an all-dry plate.
+function moistureScore(c: {
+  base?: Food
+  protein?: Food
+  veg?: Food
+}): { score: number; reason?: string } {
+  const items = [c.base, c.protein, c.veg].filter(Boolean) as Food[]
+  if (items.length === 0) return { score: 0 }
+  const tx = (f?: Food) => f?.texture ?? 'neutral'
+  const saucy = items.filter((f) => tx(f) === 'saucy').length
+  const dryBase = c.base && tx(c.base) === 'dry'
+  const dryProtein = c.protein && tx(c.protein) === 'dry'
+
+  let score = 0
+  let reason: string | undefined
+  if (dryBase && c.protein && tx(c.protein) === 'saucy') {
+    score += 3.5
+    reason = `${c.base!.name} + ${c.protein.name} — dry meets saucy 👌`
+  }
+  if (saucy === 0) {
+    // Whole plate is dry/neutral: strongly discouraged.
+    score -= 5
+    if (dryBase && dryProtein) score -= 2
+  } else {
+    score += 1.2
+  }
+  return { score, reason }
+}
+
+export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
+
+  // Never re-suggest a combo already eaten TODAY (any slot), or a recent spin.
+  const hardAvoid = new Set(opts.avoidSignatures ?? [])
+  const today = todayISO()
+  // Softly avoid combos eaten in the last 2 days so meals space out (~3 days).
+  const softAvoid = new Set<string>()
+  for (const m of data.meals) {
+    const d = daysSince(m.eaten_on)
+    if (m.eaten_on === today) hardAvoid.add(mealSignature(m))
+    else if (d >= 1 && d <= 2) softAvoid.add(mealSignature(m))
+  }
+
+  // Generate a spread of candidates, then rank by taste + balance + freshness.
+  const candidates: ScoredCombo[] = []
+  const bySig = new Map<string, ScoredCombo>()
+  for (let i = 0; i < 20; i++) {
+    const c = generateCombo(data, opts, pref, lastEaten)
+    const sig = comboSignature(c)
+    const { score: moisture, reason } = moistureScore(c)
+    c.score += moisture
+    if (reason) c.reasons = [...new Set([reason, ...c.reasons])].slice(0, 3)
+    if (softAvoid.has(sig)) c.score -= 6 // eaten recently — push down
+    if (!bySig.has(sig)) {
+      bySig.set(sig, c)
+      candidates.push(c)
+    }
+  }
+
+  // Drop anything hard-avoided (today / this session's recent spins).
+  let pool = candidates.filter((c) => !hardAvoid.has(comboSignature(c)))
+  if (pool.length === 0) pool = candidates
+
+  // Weighted pick by quality so good, balanced, fresh combos win more often —
+  // but it stays varied rather than always returning the single top combo.
+  const min = Math.min(...pool.map((c) => c.score))
+  const weights = pool.map((c) => Math.pow(2.2, c.score - min))
+  const total = weights.reduce((a, b) => a + b, 0)
+  let r = Math.random() * total
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i]
+    if (r <= 0) return pool[i]
+  }
+  return pool[pool.length - 1]
+}
+
+function generateCombo(
+  data: AppData,
+  opts: SuggestOptions,
+  pref: PrefIndex,
+  lastEaten: Map<string, string>,
+): ScoredCombo {
   const exclude = new Set(opts.excludeIds ?? [])
   const slot = opts.slot ?? 'dinner'
   const cats = SLOT_CATEGORIES[slot]

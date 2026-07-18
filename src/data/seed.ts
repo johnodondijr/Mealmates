@@ -4,6 +4,7 @@ import type {
   FoodCategory,
   Member,
   Effort,
+  Texture,
 } from '../types'
 import { newId } from '../lib/id'
 
@@ -30,10 +31,53 @@ function food(
     cost,
     effort,
     prep_minutes,
+    texture: 'neutral',
     suggestable,
     ingredients: [],
     created_at: now(),
   }
+}
+
+// Which foods are dry (need a saucy partner) vs saucy (provide moisture).
+// Anything omitted stays 'neutral' (pairs freely).
+export const TEXTURE_MAP: Record<string, Texture> = {
+  // dry starches
+  food_ugali: 'dry',
+  food_chapati: 'dry',
+  food_chapati_bf: 'dry',
+  food_mukimo: 'dry',
+  food_mashed_potatoes: 'dry',
+  food_fries_chips: 'dry',
+  food_bread: 'dry',
+  food_toast: 'dry',
+  food_mandazi: 'dry',
+  food_arrowroots: 'dry',
+  food_sweet_potato: 'dry',
+  food_groundnuts: 'dry',
+  // saucy proteins
+  food_beef_stew: 'saucy',
+  food_chicken_wet_fry_: 'saucy',
+  food_ndengu: 'saucy',
+  food_beans: 'saucy',
+  food_minced_meat: 'saucy',
+  food_omena: 'saucy',
+  // dry proteins
+  food_chicken_dry_fry_: 'dry',
+  food_fried_tilapia: 'dry',
+  food_nyama_choma: 'dry',
+  food_sausages: 'dry',
+  // saucy veg
+  food_sukuma_wiki: 'saucy',
+  food_spinach: 'saucy',
+  food_managu: 'saucy',
+  food_terere: 'saucy',
+  food_cabbage: 'saucy',
+  // drinks are wet
+  food_tea: 'saucy',
+  food_coffee: 'saucy',
+  food_uji_porridge_: 'saucy',
+  food_milk_milo: 'saucy',
+  food_cocoa: 'saucy',
 }
 
 export const SEED_FOODS: Food[] = [
@@ -120,6 +164,7 @@ for (const f of SEED_FOODS) {
       cost,
     }))
   }
+  f.texture = TEXTURE_MAP[f.id] ?? 'neutral'
 }
 
 const COLORS = ['#F45A28', '#F59300', '#6B942A', '#C2478E']

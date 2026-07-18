@@ -10,6 +10,10 @@ export type FoodCategory =
 
 export type Effort = 'Easy' | 'Medium' | 'Hard'
 
+// Moisture/texture — used to build balanced meals: a dry starch should be
+// paired with a saucy protein or veg, never dry-on-dry.
+export type Texture = 'dry' | 'saucy' | 'neutral'
+
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner'
 
 export interface Member {
@@ -34,6 +38,8 @@ export interface Food {
   cost: number // rough KES estimate (or the sum of ingredient costs)
   effort: Effort
   prep_minutes: number
+  // Texture for balanced-meal pairing (dry starch ↔ saucy protein/veg).
+  texture: Texture
   // When false, the food stays in the library and can be picked manually,
   // but the suggestion engine never proposes it (e.g. Chips/Fries).
   suggestable: boolean

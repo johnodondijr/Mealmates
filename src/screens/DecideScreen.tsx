@@ -13,6 +13,7 @@ import { useApp, mealFromCombo } from '../store/AppContext'
 import {
   buildCombo,
   comboLabel,
+  comboSignature,
   SLOT_CATEGORIES,
   SLOT_REEL_LABELS,
 } from '../engine/suggest'
@@ -52,6 +53,8 @@ export function DecideScreen() {
   const [confetti, setConfetti] = useState(false)
   const [logged, setLogged] = useState(false)
   const [costOpen, setCostOpen] = useState(false)
+  // Signatures of the last few results so a re-spin doesn't repeat them.
+  const [recentSigs, setRecentSigs] = useState<string[]>([])
 
   // Reels follow the slot: breakfast = Drink + Breakfast, otherwise Base/Protein/Veg.
   const reelPools = useMemo(() => {
@@ -67,7 +70,14 @@ export function DecideScreen() {
   }, [reelPools, combo])
 
   const roll = (spin: boolean) => {
-    const next = buildCombo(data, { budgetMode, presentMemberIds: present, slot })
+    const next = buildCombo(data, {
+      budgetMode,
+      presentMemberIds: present,
+      slot,
+      avoidSignatures: recentSigs,
+    })
+    // Remember the last 5 results so consecutive spins keep changing.
+    setRecentSigs((prev) => [comboSignature(next), ...prev].slice(0, 5))
     setCombo(next)
     setLogged(false)
     if (spin) {

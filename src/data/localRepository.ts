@@ -11,7 +11,7 @@ import type {
   VoteBallot,
   VoteOption,
 } from '../types'
-import { buildSeedData } from './seed'
+import { buildSeedData, TEXTURE_MAP } from './seed'
 import { newId } from '../lib/id'
 
 const STORAGE_KEY = 'mealmates.data.v1'
@@ -36,6 +36,7 @@ function migrate(data: AppData): AppData {
   for (const f of data.foods ?? []) {
     if (f.suggestable === undefined) f.suggestable = true
     if (!Array.isArray(f.ingredients)) f.ingredients = []
+    if (!f.texture) f.texture = TEXTURE_MAP[f.id] ?? 'neutral'
   }
   for (const m of data.meals) {
     if (!Array.isArray(m.component_costs)) m.component_costs = []
