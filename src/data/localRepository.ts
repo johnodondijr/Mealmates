@@ -14,7 +14,8 @@ import type {
 import { buildSeedData, TEXTURE_MAP } from './seed'
 import { newId } from '../lib/id'
 
-const STORAGE_KEY = 'mealmates.data.v1'
+// v2: clean default (single housemate, no seeded history/spending).
+const STORAGE_KEY = 'mealmates.data.v2'
 const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
 const CURRENT_SCHEMA = 6

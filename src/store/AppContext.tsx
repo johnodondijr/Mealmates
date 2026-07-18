@@ -98,6 +98,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(CURRENT_MEMBER_KEY, id)
   }, [])
 
+  // If the active member no longer exists (e.g. after a reset), fall back to
+  // the first member so the profile switcher / greeting stay valid.
+  useEffect(() => {
+    if (!data) return
+    if (data.members.length > 0 && !data.members.some((m) => m.id === currentMemberId)) {
+      setCurrentMemberId(data.members[0].id)
+    }
+  }, [data, currentMemberId, setCurrentMemberId])
+
   // Every mutation optimistically reloads afterward so local state stays in
   // sync even on the same tab (BroadcastChannel doesn't fire on the sender).
   const withReload = useCallback(

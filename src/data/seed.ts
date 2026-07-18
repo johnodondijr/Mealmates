@@ -6,8 +6,6 @@ import type {
   Effort,
   Texture,
 } from '../types'
-import { newId } from '../lib/id'
-
 const now = () => new Date().toISOString()
 
 // Deterministic-ish ids for seed foods so pairing rules can reference names.
@@ -169,106 +167,30 @@ for (const f of SEED_FOODS) {
   f.texture = TEXTURE_MAP[f.id] ?? 'neutral'
 }
 
-// Curated, muted earthy palette that blends with the greige/green system.
-const COLORS = ['#C4704F', '#C79A3E', '#6B8E5A', '#9A6E8A']
-const EMOJIS = ['🦁', '🌸', '🚀', '🦋']
-const NAMES = ['Fred', 'Girlfriend', 'Friend', "Friend's GF"]
-
-export const SEED_MEMBERS: Member[] = NAMES.map((name, i) => ({
-  id: `member_${i + 1}`,
-  name,
-  emoji: EMOJIS[i],
-  color: COLORS[i],
-  created_at: now(),
-}))
+// Start with a single housemate. The user adds the rest in Settings.
+export const SEED_MEMBERS: Member[] = [
+  { id: 'member_1', name: 'Me', emoji: '🙂', color: '#C4704F', created_at: now() },
+]
 
 export function buildSeedData(): AppData {
   return {
     members: SEED_MEMBERS,
     foods: SEED_FOODS,
-    preferences: [
-      // A little starter flavour so preferences aren't empty.
-      { id: newId('pref'), member_id: 'member_1', food_id: 'food_ugali', preference: 'love' },
-      { id: newId('pref'), member_id: 'member_1', food_id: 'food_nyama_choma', preference: 'love' },
-      { id: newId('pref'), member_id: 'member_2', food_id: 'food_chapati', preference: 'love' },
-      { id: newId('pref'), member_id: 'member_2', food_id: 'food_omena', preference: 'refuse' },
-      { id: newId('pref'), member_id: 'member_3', food_id: 'food_pilau', preference: 'love' },
-      { id: newId('pref'), member_id: 'member_4', food_id: 'food_fried_tilapia', preference: 'love' },
-    ],
+    // No preferences / history / spending yet — these fill in as the household
+    // uses the app. Only the food library is pre-seeded.
+    preferences: [],
     wishes: [],
     votes: [],
     voteOptions: [],
     ballots: [],
-    meals: seedMeals(),
-    expenses: seedExpenses(),
+    meals: [],
+    expenses: [],
     settings: {
       id: 'settings',
-      household_name: 'The Nairobi Four',
+      household_name: 'My Household',
       monthly_budget: 30000,
       budget_mode: false,
       currency: 'KES',
     },
   }
-}
-
-function daysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
-}
-
-// A few recent meals so recency logic + stats have something to chew on.
-function seedMeals(): AppData['meals'] {
-  const rows: Array<[string, string | null, string | null, string | null, number, number]> = [
-    ['Ugali + Beef Stew + Sukuma', 'food_ugali', 'food_beef_stew', 'food_sukuma_wiki', 320, 1],
-    ['Rice + Beans + Kachumbari', 'food_rice', 'food_beans', 'food_kachumbari', 190, 2],
-    ['Chapati + Ndengu', 'food_chapati', 'food_ndengu', null, 170, 3],
-    ['Ugali + Sukuma Wiki', 'food_ugali', null, 'food_sukuma_wiki', 70, 5],
-    ['Spaghetti + Minced Meat', 'food_spaghetti', 'food_minced_meat', null, 310, 6],
-  ]
-  const foodName = (id: string | null) =>
-    SEED_FOODS.find((f) => f.id === id)?.name ?? ''
-  return rows.map(([label, base, protein, veg, cost, ago]) => {
-    // Split the total across the components so cost history has data.
-    const parts = [base, protein, veg].filter(Boolean) as string[]
-    const each = parts.length ? Math.round(cost / parts.length) : 0
-    return {
-      id: newId('meal'),
-      slot: 'dinner' as const,
-      label,
-      base_id: base,
-      protein_id: protein,
-      veg_id: veg,
-      cost,
-      component_costs: parts.map((id) => ({
-        food_id: id,
-        label: foodName(id),
-        amount: each,
-      })),
-      eaten_on: daysAgo(ago),
-      logged_by: 'member_1',
-      from_vote_id: null,
-      created_at: now(),
-    }
-  })
-}
-
-function seedExpenses(): AppData['expenses'] {
-  const rows: Array<[number, string, AppData['expenses'][number]['category'], string, number]> = [
-    [1200, 'Weekly groceries', 'groceries', 'member_1', 2],
-    [450, 'Beef from butcher', 'protein', 'member_2', 3],
-    [300, 'Vegetables at market', 'veg', 'member_3', 4],
-    [800, 'Rice & flour', 'groceries', 'member_1', 6],
-    [500, 'Chicken', 'protein', 'member_4', 8],
-  ]
-  return rows.map(([amount, description, category, paid_by, ago]) => ({
-    id: newId('exp'),
-    amount,
-    description,
-    category,
-    paid_by,
-    spent_on: daysAgo(ago),
-    meal_id: null,
-    created_at: now(),
-  }))
 }
