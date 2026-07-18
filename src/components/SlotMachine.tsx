@@ -3,11 +3,12 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { Food } from '../types'
 import { cn } from '../lib/cn'
 
-const ITEM_H = 96 // px per reel item
+const ITEM_H = 104 // px per reel item
 
 interface ReelProps {
   pool: Food[]
   target: Food | undefined
+  label: string
   spinning: boolean
   delay: number
   onStop?: () => void
@@ -23,7 +24,7 @@ function buildStrip(pool: Food[], target: Food | undefined): Food[] {
   return strip
 }
 
-function Reel({ pool, target, spinning, delay, onStop }: ReelProps) {
+function Reel({ pool, target, label, spinning, delay, onStop }: ReelProps) {
   const reduce = useReducedMotion()
   const strip = useMemo(
     () => buildStrip(pool, target),
@@ -33,46 +34,67 @@ function Reel({ pool, target, spinning, delay, onStop }: ReelProps) {
   )
   const finalIndex = strip.length - 1
   const restY = -(finalIndex * ITEM_H)
+  const idle = !target && !spinning
+  const landed = !!target && !spinning
 
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-2xl bg-white ring-1 transition-all dark:bg-charcoal-950',
-        spinning
-          ? 'ring-charcoal-900/[0.05] dark:ring-white/[0.05]'
-          : 'ring-paprika-300/70 dark:ring-paprika-500/30',
+        'relative overflow-hidden rounded-2xl bg-white ring-1 transition-all duration-300 dark:bg-charcoal-950',
+        landed
+          ? 'ring-2 ring-paprika-400 dark:ring-paprika-500/50'
+          : 'ring-charcoal-900/[0.05] dark:ring-white/[0.06]',
       )}
       style={{ height: ITEM_H }}
     >
-      <motion.div
-        initial={false}
-        animate={{ y: spinning && !reduce ? [0, restY] : restY }}
-        transition={
-          spinning && !reduce
-            ? { duration: 1.6 + delay, ease: [0.15, 0.8, 0.3, 1] }
-            : { duration: 0 }
-        }
-        // Only report a stop for a real spin — avoids firing on mount / rest.
-        onAnimationComplete={() => {
-          if (spinning) onStop?.()
-        }}
-      >
-        {strip.map((food, i) => (
-          <div
-            key={i}
-            className="flex flex-col items-center justify-center"
-            style={{ height: ITEM_H }}
-          >
-            <span className="text-4xl">{food.emoji}</span>
-            <span className="mt-0.5 max-w-[6rem] truncate px-1 text-center font-display text-xs font-bold text-charcoal-800 dark:text-cream">
-              {food.name}
-            </span>
-          </div>
-        ))}
-      </motion.div>
-      {/* subtle center highlight */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-black/10 to-transparent dark:from-black/40" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/10 to-transparent dark:from-black/40" />
+      {idle ? (
+        <div className="flex h-full flex-col items-center justify-center gap-1.5">
+          <span className="text-3xl opacity-25">🍽️</span>
+          <span className="font-display text-[0.7rem] font-bold uppercase tracking-wide text-charcoal-800/40 dark:text-cream/40">
+            {label}
+          </span>
+        </div>
+      ) : (
+        <motion.div
+          initial={false}
+          animate={{ y: spinning && !reduce ? [0, restY] : restY }}
+          transition={
+            spinning && !reduce
+              ? { duration: 1.7 + delay, ease: [0.12, 0.7, 0.2, 1] }
+              : { duration: 0 }
+          }
+          // Only report a stop for a real spin — avoids firing on mount / rest.
+          onAnimationComplete={() => {
+            if (spinning) onStop?.()
+          }}
+        >
+          {strip.map((food, i) => {
+            const isTarget = landed && i === finalIndex
+            return (
+              <div
+                key={i}
+                className="flex flex-col items-center justify-center gap-1"
+                style={{ height: ITEM_H }}
+              >
+                <motion.span
+                  className="text-[2.6rem] leading-none"
+                  animate={isTarget && !reduce ? { scale: [0.7, 1.15, 1] } : {}}
+                  transition={{ duration: 0.35 }}
+                >
+                  {food.emoji}
+                </motion.span>
+                <span className="max-w-[6.5rem] truncate px-1 text-center font-display text-[0.72rem] font-bold text-charcoal-800 dark:text-cream">
+                  {food.name}
+                </span>
+              </div>
+            )
+          })}
+        </motion.div>
+      )}
+
+      {/* soft top/bottom fades to sell the reel depth */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-black/[0.06] to-transparent dark:from-black/40" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-black/[0.06] to-transparent dark:from-black/40" />
     </div>
   )
 }
@@ -80,6 +102,7 @@ function Reel({ pool, target, spinning, delay, onStop }: ReelProps) {
 export interface ReelSpec {
   pool: Food[]
   target?: Food
+  label: string
 }
 
 interface SlotMachineProps {
@@ -114,8 +137,9 @@ export function SlotMachine({ reels, spinning, onAllStopped }: SlotMachineProps)
           key={i}
           pool={r.pool}
           target={r.target}
+          label={r.label}
           spinning={spinning}
-          delay={i * 0.25}
+          delay={i * 0.28}
           onStop={handleStop}
         />
       ))}

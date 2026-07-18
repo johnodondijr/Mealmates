@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, ChevronRight, PiggyBank, RefreshCw, Sparkles } from 'lucide-react'
+import { Check, PiggyBank, RefreshCw, Sparkles } from 'lucide-react'
 import { useApp, mealFromCombo } from '../store/AppContext'
 import {
   buildCombo,
@@ -63,8 +63,9 @@ export function DecideScreen() {
 
   const reels: ReelSpec[] = useMemo(() => {
     const targets = [combo?.base, combo?.protein, combo?.veg]
-    return reelPools.map((pool, i) => ({ pool, target: targets[i] }))
-  }, [reelPools, combo])
+    const labels = SLOT_REEL_LABELS[slot]
+    return reelPools.map((pool, i) => ({ pool, target: targets[i], label: labels[i] }))
+  }, [reelPools, combo, slot])
 
   const roll = (spin: boolean) => {
     const next = buildCombo(data, {
@@ -292,21 +293,30 @@ export function DecideScreen() {
         </AnimatePresence>
       </div>
 
-      {/* Hero actions */}
-      <div className="grid grid-cols-1 gap-2.5">
-        <Button size="lg" onClick={() => roll(false)} fullWidth className="py-4 text-lg">
-          🍲 Decide for us
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => roll(true)}
-          fullWidth
-          className="py-3.5"
-        >
-          <Sparkles size={18} className="text-mango-500" /> Surprise Me — spin
-          <ChevronRight size={17} className="text-charcoal-800/40 dark:text-cream/40" />
-        </Button>
-      </div>
+      {/* Hero action — spins the reels to decide. Once revealed, the result
+          card carries the actions (Spin again / Cook it up). */}
+      {!revealed && (
+        <div>
+          <Button
+            size="lg"
+            onClick={() => roll(true)}
+            disabled={spinning}
+            fullWidth
+            className="py-4 text-lg"
+          >
+            {spinning ? (
+              <>
+                <Sparkles size={20} className="animate-pulse text-mango-400" /> Spinning…
+              </>
+            ) : (
+              <>🎰 Decide for us</>
+            )}
+          </Button>
+          <p className="mt-2 text-center text-xs font-medium text-charcoal-800/45 dark:text-cream/40">
+            Spin the reels for a smart, balanced pick
+          </p>
+        </div>
+      )}
 
       {costOpen && combo && (
         <MealCostSheet
