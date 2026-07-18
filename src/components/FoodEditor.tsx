@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Sparkles, Trash2, TrendingUp, X } from 'lucide-react'
+import { PackageCheck, Plus, Sparkles, Trash2, TrendingUp, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import type { Effort, Food, FoodCategory, Ingredient, Texture } from '../types'
 import { Sheet } from './ui/Sheet'
@@ -50,6 +50,7 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
   const [prep, setPrep] = useState(String(food?.prep_minutes ?? 30))
   const [texture, setTexture] = useState<Texture>(food?.texture ?? 'neutral')
   const [suggestable, setSuggestable] = useState(food?.suggestable ?? true)
+  const [available, setAvailable] = useState(food?.available ?? true)
   const [ingredients, setIngredients] = useState<IngredientDraft[]>(
     () => food?.ingredients ?? [],
   )
@@ -82,6 +83,7 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
       prep_minutes: Number(prep) || 0,
       texture,
       suggestable,
+      available,
       ingredients: ingredients
         .filter((i) => i.name.trim())
         .map((i) => ({ ...i, name: i.name.trim(), cost: Number(i.cost) || 0 })),
@@ -144,39 +146,23 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
           </div>
         </div>
 
-        {/* Suggest toggle */}
-        <button
-          onClick={() => setSuggestable((s) => !s)}
-          className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-card dark:bg-charcoal-800"
-        >
-          <Sparkles
-            size={20}
-            className={suggestable ? 'text-avocado-500' : 'text-charcoal-800/30 dark:text-cream/30'}
-          />
-          <div className="flex-1">
-            <p className="font-display font-bold text-charcoal-900 dark:text-cream">
-              Suggest in meals
-            </p>
-            <p className="text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
-              {suggestable
-                ? 'The decider can propose this food.'
-                : 'Kept as an option, but never auto-suggested.'}
-            </p>
-          </div>
-          <span
-            className={cn(
-              'relative h-7 w-12 rounded-full transition-colors',
-              suggestable ? 'bg-avocado-500' : 'bg-charcoal-200 dark:bg-charcoal-950',
-            )}
-          >
-            <span
-              className={cn(
-                'absolute top-1 h-5 w-5 rounded-full bg-white transition-all',
-                suggestable ? 'left-6' : 'left-1',
-              )}
-            />
-          </span>
-        </button>
+        {/* Toggles */}
+        <Toggle
+          icon={<Sparkles size={20} />}
+          title="Suggest in meals"
+          on={suggestable}
+          onChange={() => setSuggestable((s) => !s)}
+          onText="The decider can propose this food."
+          offText="Kept as an option, but never auto-suggested."
+        />
+        <Toggle
+          icon={<PackageCheck size={20} />}
+          title="Available / in reach"
+          on={available}
+          onChange={() => setAvailable((a) => !a)}
+          onText="We have this — it can be suggested."
+          offText="Out of stock — hidden from suggestions until back."
+        />
 
         {/* Cost + prep */}
         <div className="grid grid-cols-2 gap-3">
@@ -315,6 +301,52 @@ export function FoodEditor({ food, defaultCategory, onClose }: FoodEditorProps) 
         </div>
       </div>
     </Sheet>
+  )
+}
+
+function Toggle({
+  icon,
+  title,
+  on,
+  onChange,
+  onText,
+  offText,
+}: {
+  icon: React.ReactNode
+  title: string
+  on: boolean
+  onChange: () => void
+  onText: string
+  offText: string
+}) {
+  return (
+    <button
+      onClick={onChange}
+      className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:ring-white/[0.06]"
+    >
+      <span className={on ? 'text-avocado-500' : 'text-charcoal-800/30 dark:text-cream/30'}>
+        {icon}
+      </span>
+      <div className="flex-1">
+        <p className="font-display font-bold text-charcoal-900 dark:text-cream">{title}</p>
+        <p className="text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
+          {on ? onText : offText}
+        </p>
+      </div>
+      <span
+        className={cn(
+          'relative h-7 w-12 shrink-0 rounded-full transition-colors',
+          on ? 'bg-avocado-500' : 'bg-charcoal-200 dark:bg-charcoal-950',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-1 h-5 w-5 rounded-full bg-white transition-all',
+            on ? 'left-6' : 'left-1',
+          )}
+        />
+      </span>
+    </button>
   )
 }
 

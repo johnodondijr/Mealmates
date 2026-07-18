@@ -33,6 +33,7 @@ function food(
     prep_minutes,
     texture: 'neutral',
     suggestable,
+    available: true,
     ingredients: [],
     created_at: now(),
   }
@@ -102,7 +103,6 @@ export const SEED_FOODS: Food[] = [
   food('Ndengu', 'protein', '🫛', 90, 'Medium', 40),
   food('Beans', 'protein', '🫘', 80, 'Medium', 50),
   food('Eggs', 'protein', '🥚', 60, 'Easy', 10),
-  food('Sausages', 'protein', '🌭', 150, 'Easy', 12),
   food('Minced Meat', 'protein', '🍖', 220, 'Medium', 35),
   food('Nyama Choma', 'protein', '🍖', 400, 'Hard', 60),
 
@@ -133,6 +133,8 @@ export const SEED_FOODS: Food[] = [
   food('Arrowroots', 'breakfast', '🥔', 70, 'Medium', 25),
   food('Sweet Potato', 'breakfast', '🍠', 60, 'Medium', 30),
   food('Groundnuts', 'breakfast', '🥜', 50, 'Easy', 2),
+  // Sausages are more of a snack/breakfast item, not a main-meal protein.
+  food('Sausages', 'breakfast', '🌭', 150, 'Easy', 12),
 
   // ---- Treats / Extras ----
   food('Pilau', 'treat', '🍛', 200, 'Hard', 60),

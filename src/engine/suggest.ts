@@ -301,7 +301,9 @@ function generateCombo(
 
   const byCat = (cat: Food['category']) =>
     data.foods
-      .filter((f) => f.category === cat && f.suggestable !== false)
+      .filter(
+        (f) => f.category === cat && f.suggestable !== false && f.available !== false,
+      )
       .map((f) => scoreFood(f, pref, lastEaten, opts))
 
   // Slot 1 (base for lunch/dinner, drink for breakfast).
@@ -389,7 +391,11 @@ export function buildWishCandidates(
 
   const [baseCat, proteinCat, vegCat] = SLOT_CATEGORIES[opts.slot ?? 'dinner']
   const poolOf = (cat?: FoodCategory) =>
-    cat ? data.foods.filter((f) => f.category === cat && f.suggestable !== false) : []
+    cat
+      ? data.foods.filter(
+          (f) => f.category === cat && f.suggestable !== false && f.available !== false,
+        )
+      : []
 
   // How well an item completes a plate: wanted foods win, and a dry base pulls
   // for a saucy partner (and pushes away another dry one).

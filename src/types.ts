@@ -43,6 +43,9 @@ export interface Food {
   // When false, the food stays in the library and can be picked manually,
   // but the suggestion engine never proposes it (e.g. Chips/Fries).
   suggestable: boolean
+  // Whether the household currently has this / it's in reach. Unavailable
+  // foods stay in the library but are never suggested until marked back.
+  available: boolean
   // Optional itemised ingredient cost breakdown for this food.
   ingredients: Ingredient[]
   created_at: string

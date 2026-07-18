@@ -191,6 +191,7 @@ export function FoodsScreen() {
                 onClick={() => toggleWish(food)}
                 className={cn(
                   'flex cursor-pointer items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 transition-all active:scale-[0.99] dark:bg-charcoal-800/70',
+                  food.available === false && 'opacity-55',
                   iWant
                     ? 'ring-2 ring-paprika-400'
                     : refuses > 0
@@ -216,10 +217,16 @@ export function FoodsScreen() {
                     <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
                       {food.name}
                     </p>
-                    {food.suggestable === false && (
-                      <span className="shrink-0 rounded-full bg-charcoal-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-charcoal-800/60 dark:bg-charcoal-950 dark:text-cream/50">
-                        Not suggested
+                    {food.available === false ? (
+                      <span className="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-600 dark:bg-red-500/20 dark:text-red-300">
+                        Out of stock
                       </span>
+                    ) : (
+                      food.suggestable === false && (
+                        <span className="shrink-0 rounded-full bg-charcoal-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-charcoal-800/60 dark:bg-charcoal-950 dark:text-cream/50">
+                          Not suggested
+                        </span>
+                      )
                     )}
                   </div>
                   <p className="truncate text-xs font-medium text-charcoal-800/50 dark:text-cream/40">

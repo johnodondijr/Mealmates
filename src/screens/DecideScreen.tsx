@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronRight, PiggyBank, RefreshCw, Sparkles } from 'lucide-react'
 import { useApp, mealFromCombo } from '../store/AppContext'
@@ -55,7 +55,9 @@ export function DecideScreen() {
   const reelPools = useMemo(() => {
     const cats = SLOT_CATEGORIES[slot]
     return cats.map((cat) =>
-      data.foods.filter((f) => f.category === cat && f.suggestable !== false),
+      data.foods.filter(
+        (f) => f.category === cat && f.suggestable !== false && f.available !== false,
+      ),
     )
   }, [data.foods, slot])
 
@@ -161,55 +163,46 @@ export function DecideScreen() {
       </div>
 
       {/* Who's eating — sits on the canvas, no heavy container */}
-      <div>
-        <p className="mb-3 px-1 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
-          Who's eating?
-        </p>
-        <div className="flex justify-between gap-2">
-          {data.members.map((m) => {
-            const on = present.includes(m.id)
-            return (
-              <button
-                key={m.id}
-                onClick={() => togglePresent(m.id)}
-                className="flex flex-col items-center gap-1.5"
-              >
-                <span className="relative">
-                  <span
-                    className={cn(
-                      'block rounded-full transition-all',
-                      on
-                        ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-charcoal-800'
-                        : 'opacity-40 grayscale',
-                    )}
-                    style={on ? ({ ['--tw-ring-color']: m.color } as CSSProperties) : undefined}
-                  >
-                    <Avatar member={m} size={52} />
-                  </span>
-                  <span
-                    className={cn(
-                      'absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white transition-all dark:border-charcoal-800',
-                      on ? 'bg-avocado-500 text-white' : 'bg-charcoal-200 text-transparent dark:bg-charcoal-950',
-                    )}
-                  >
-                    <Check size={12} strokeWidth={3} />
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    'font-display text-xs font-semibold',
-                    on
-                      ? 'text-charcoal-900 dark:text-cream'
-                      : 'text-charcoal-800/40 dark:text-cream/40',
-                  )}
+      {data.members.length > 1 && (
+        <div>
+          <p className="mb-3 px-1 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
+            Who's eating?
+          </p>
+          <div className="flex flex-wrap gap-x-5 gap-y-3">
+            {data.members.map((m) => {
+              const on = present.includes(m.id)
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => togglePresent(m.id)}
+                  className="flex w-[58px] flex-col items-center gap-1.5"
                 >
-                  {m.name}
-                </span>
-              </button>
-            )
-          })}
+                  <span className="relative">
+                    <span className={cn('block transition-all', !on && 'opacity-35 grayscale')}>
+                      <Avatar member={m} size={50} />
+                    </span>
+                    {on && (
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-avocado-500 text-white ring-2 ring-cream dark:ring-charcoal-950">
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    className={cn(
+                      'w-full truncate text-center font-display text-xs font-semibold',
+                      on
+                        ? 'text-charcoal-900 dark:text-cream'
+                        : 'text-charcoal-800/40 dark:text-cream/40',
+                    )}
+                  >
+                    {m.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Slot machine — sits open on the canvas */}
       <div className="overflow-hidden">

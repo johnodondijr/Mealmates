@@ -17,7 +17,7 @@ import { newId } from '../lib/id'
 const STORAGE_KEY = 'mealmates.data.v1'
 const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
-const CURRENT_SCHEMA = 5
+const CURRENT_SCHEMA = 6
 
 // Old loud member colours → curated muted equivalents.
 const MEMBER_RECOLOR: Record<string, string> = {
@@ -43,6 +43,7 @@ function migrate(data: AppData): AppData {
   data.expenses ??= []
   for (const f of data.foods ?? []) {
     if (f.suggestable === undefined) f.suggestable = true
+    if (f.available === undefined) f.available = true
     if (!Array.isArray(f.ingredients)) f.ingredients = []
     if (!f.texture) f.texture = TEXTURE_MAP[f.id] ?? 'neutral'
   }
@@ -72,6 +73,10 @@ function applyFixups(data: AppData): boolean {
   for (const m of data.members) {
     if (MEMBER_RECOLOR[m.color]) m.color = MEMBER_RECOLOR[m.color]
   }
+
+  // Sausages are a snack/breakfast item — move out of main-meal proteins.
+  const sausages = data.foods.find((f) => f.id === 'food_sausages')
+  if (sausages && sausages.category === 'protein') sausages.category = 'breakfast'
 
   // Add any new seed drinks/breakfast solids that aren't present yet.
   const existing = new Set(data.foods.map((f) => f.id))
