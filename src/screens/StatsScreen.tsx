@@ -179,39 +179,38 @@ export function StatsScreen() {
         </Button>
       </div>
 
-      <h3 className="mt-5 mb-2 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
+      <h3 className="mb-2 mt-6 px-1 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
         Meal history
       </h3>
-      <div className="space-y-2">
-        {history.map((m) => {
-          const who = nameById.get(m.logged_by)
-          return (
-            <Card key={m.id} className="flex items-center gap-3 p-3">
-              <div className="flex flex-col items-center">
+      {history.length > 0 ? (
+        <Card flat className="divide-y divide-charcoal-900/[0.05] overflow-hidden dark:divide-white/[0.06]">
+          {history.map((m) => {
+            const who = nameById.get(m.logged_by)
+            return (
+              <div key={m.id} className="flex items-center gap-3 p-3">
                 {who && <Avatar member={who} size={30} />}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
+                    {m.label}
+                  </p>
+                  <p className="text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
+                    {relativeDay(m.eaten_on)} · {m.slot} · {formatKES(m.cost)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeMeal(m.id)}
+                  className="rounded-full p-1.5 text-charcoal-800/30 hover:bg-black/5 hover:text-red-500 dark:text-cream/30"
+                  aria-label="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
-                  {m.label}
-                </p>
-                <p className="text-xs font-semibold text-charcoal-800/50 dark:text-cream/40">
-                  {relativeDay(m.eaten_on)} · {m.slot} · {formatKES(m.cost)}
-                </p>
-              </div>
-              <button
-                onClick={() => removeMeal(m.id)}
-                className="rounded-full p-1.5 text-charcoal-800/30 hover:bg-black/5 hover:text-red-500 dark:text-cream/30"
-                aria-label="Delete"
-              >
-                <Trash2 size={16} />
-              </button>
-            </Card>
-          )
-        })}
-        {history.length === 0 && (
-          <EmptyBlurb emoji="👀" text="No meals logged yet. Someone's been eating out." />
-        )}
-      </div>
+            )
+          })}
+        </Card>
+      ) : (
+        <EmptyBlurb emoji="👀" text="No meals logged yet. Someone's been eating out." />
+      )}
 
       {/* count-up flourish */}
       <div className="mt-6 text-center">

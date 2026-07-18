@@ -102,19 +102,20 @@ export function MoneyScreen() {
       </div>
 
       {/* Spend by day */}
-      <h3 className="mt-5 mb-2 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
+      <h3 className="mb-2 mt-6 px-1 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
         Spent each day
       </h3>
-      <div className="space-y-2">
-        {days.map((d) => {
-          const isOpen = openDay === d.date
-          const dayExpenses = expensesByDay.get(d.date) ?? []
-          return (
-            <Card key={d.date} className="overflow-hidden">
-              <button
-                onClick={() => setOpenDay(isOpen ? null : d.date)}
-                className="flex w-full items-center gap-3 p-3.5 text-left"
-              >
+      {days.length > 0 && (
+        <Card flat className="divide-y divide-charcoal-900/[0.05] overflow-hidden dark:divide-white/[0.06]">
+          {days.map((d) => {
+            const isOpen = openDay === d.date
+            const dayExpenses = expensesByDay.get(d.date) ?? []
+            return (
+              <div key={d.date}>
+                <button
+                  onClick={() => setOpenDay(isOpen ? null : d.date)}
+                  className="flex w-full items-center gap-3 p-3.5 text-left"
+                >
                 <div className="min-w-0 flex-1">
                   <p className="font-display font-bold text-charcoal-900 dark:text-cream">
                     {relativeDay(d.date)}
@@ -192,21 +193,22 @@ export function MoneyScreen() {
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-            </Card>
-          )
-        })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </Card>
+      )}
 
-        {days.length === 0 && (
-          <div className="py-10 text-center">
-            <p className="text-5xl">🧾</p>
-            <p className="mt-2 font-display font-bold text-charcoal-800/60 dark:text-cream/50">
-              Nothing spent yet this month. Free food? 👀
-            </p>
-          </div>
-        )}
-      </div>
+      {days.length === 0 && (
+        <div className="py-10 text-center">
+          <p className="text-5xl">🧾</p>
+          <p className="mt-2 font-display font-bold text-charcoal-800/60 dark:text-cream/50">
+            Nothing spent yet this month. Free food? 👀
+          </p>
+        </div>
+      )}
 
       {/* Charts */}
       <div className="mt-5 grid grid-cols-1 gap-3">

@@ -39,6 +39,16 @@ export function VoteCard({ vote }: VoteCardProps) {
     [data.ballots, vote.id],
   )
 
+  const emojiById = useMemo(
+    () => new Map(data.foods.map((f) => [f.id, f.emoji])),
+    [data.foods],
+  )
+  const optionEmoji = (o: VoteOption) =>
+    emojiById.get(o.base_id ?? '') ??
+    emojiById.get(o.protein_id ?? '') ??
+    emojiById.get(o.veg_id ?? '') ??
+    '🍽️'
+
   const countFor = (optId: string) => ballots.filter((b) => b.option_id === optId).length
   const votersFor = (optId: string) =>
     ballots
@@ -168,12 +178,15 @@ export function VoteCard({ vote }: VoteCardProps) {
                 animate={{ width: `${pct}%` }}
                 transition={{ type: 'spring', stiffness: 120, damping: 20 }}
               />
-              <div className="relative z-10 flex items-center gap-2">
+              <div className="relative z-10 flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-lg ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:ring-white/[0.06]">
+                  {optionEmoji(o)}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
                     {o.label}
                   </p>
-                  <p className="text-xs font-semibold text-charcoal-800/50 dark:text-cream/40">
+                  <p className="text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
                     {formatKES(o.total_cost)}
                   </p>
                 </div>
