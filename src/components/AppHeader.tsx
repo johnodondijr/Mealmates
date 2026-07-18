@@ -31,28 +31,28 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={toggle}
-            className="rounded-full p-2 text-charcoal-800 hover:bg-black/5 dark:text-cream dark:hover:bg-white/10"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-charcoal-900 shadow-card ring-1 ring-charcoal-900/[0.04] transition-transform active:scale-95 dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.06]"
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
           </button>
           <button
             onClick={onOpenSettings}
-            className="rounded-full p-2 text-charcoal-800 hover:bg-black/5 dark:text-cream dark:hover:bg-white/10"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-charcoal-900 shadow-card ring-1 ring-charcoal-900/[0.04] transition-transform active:scale-95 dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.06]"
             aria-label="Settings"
           >
-            <Settings size={20} />
+            <Settings size={19} />
           </button>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="ml-0.5"
+            className="ml-0.5 rounded-full ring-2 ring-white transition-transform active:scale-95 dark:ring-charcoal-800"
             aria-label="Switch profile"
           >
             {currentMember && (
-              <Avatar member={currentMember} size={38} crown={chefId === currentMemberId} />
+              <Avatar member={currentMember} size={40} crown={chefId === currentMemberId} />
             )}
           </button>
         </div>

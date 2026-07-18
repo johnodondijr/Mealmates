@@ -1,6 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { useEffect, useMemo, useRef } from 'react'
 import type { Food } from '../types'
+import { cn } from '../lib/cn'
 
 const ITEM_H = 96 // px per reel item
 
@@ -35,7 +36,12 @@ function Reel({ pool, target, spinning, delay, onStop }: ReelProps) {
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl bg-cream shadow-inner ring-2 ring-paprika-200 dark:bg-charcoal-950 dark:ring-charcoal-800"
+      className={cn(
+        'relative overflow-hidden rounded-2xl bg-white ring-1 transition-all dark:bg-charcoal-950',
+        spinning
+          ? 'ring-charcoal-900/[0.05] dark:ring-white/[0.05]'
+          : 'ring-paprika-300/70 dark:ring-paprika-500/30',
+      )}
       style={{ height: ITEM_H }}
     >
       <motion.div
