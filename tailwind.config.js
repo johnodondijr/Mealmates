@@ -1,65 +1,69 @@
 /** @type {import('tailwindcss').Config} */
+
+// Palette adapted from the reference design language:
+//   canvas  = warm greige background        (token: `cream`)
+//   ink/grey= near-black headings + grey     (token: `charcoal`)
+//   accent  = one fresh leaf green           (tokens: `paprika` + `avocado`)
+//   gold    = highlight / badges             (token: `mango`)
+// Token *names* are kept stable so the whole app recolours from here; their
+// meaning is the mapping above (an intentional, documented remap).
+const green = {
+  50: '#EEF6E3',
+  100: '#DBECC4',
+  200: '#C0DD98',
+  300: '#A1CC6A',
+  400: '#86BA46',
+  500: '#6EA630',
+  600: '#578A24',
+  700: '#42691C',
+  800: '#33531A',
+  900: '#2A4417',
+}
+
 export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        // Clean, modern, grown-up. Headings differ from body by weight, not face.
-        display: ['Inter', 'system-ui', 'sans-serif'],
-        body: ['Inter', 'system-ui', 'sans-serif'],
-      },
-      letterSpacing: {
-        tightish: '-0.01em',
+        display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        body: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // Warm, appetizing palette — no cold corporate blue.
-        cream: '#FFF8F0',
-        paprika: {
-          50: '#FFF1EC',
-          100: '#FFE0D4',
-          200: '#FFC0A8',
-          300: '#FF9D78',
-          400: '#FF7A4D',
-          500: '#F45A28',
-          600: '#DB4417',
-          700: '#B53410',
-          800: '#8F2A12',
-          900: '#732513',
-        },
+        // Warm greige canvas
+        cream: '#EBE7E0',
+        // Leaf-green accent (primary accent across chrome)
+        paprika: green,
+        avocado: green,
+        // Gold highlight
         mango: {
-          50: '#FFF8E6',
-          100: '#FFEDBF',
-          200: '#FFD980',
-          300: '#FFC44D',
-          400: '#FFB01F',
-          500: '#F59300',
-          600: '#CC7700',
-          700: '#A35C00',
+          50: '#FEF7E2',
+          100: '#FDECBC',
+          200: '#FBD97D',
+          300: '#F9C63F',
+          400: '#F5B10A',
+          500: '#D8990A',
+          600: '#AE7A08',
+          700: '#835B06',
         },
-        avocado: {
-          50: '#F2F7E9',
-          100: '#E0EDC8',
-          200: '#C3DD93',
-          300: '#A3C95E',
-          400: '#86B23A',
-          500: '#6B942A',
-          600: '#537322',
-        },
+        // Warm ink + greys for text and dark surfaces
         charcoal: {
-          50: '#F6F5F4',
-          100: '#E7E4E1',
-          800: '#2B2622',
-          900: '#1C1815',
-          950: '#120F0D',
+          50: '#F5F3EF',
+          100: '#E6E2DB',
+          200: '#D3CEC5',
+          800: '#3A382F',
+          900: '#22201B',
+          950: '#161410',
         },
       },
       boxShadow: {
-        // Layered, restrained elevation — a tight contact shadow plus a soft
-        // ambient one, rather than one big blur.
-        pop: '0 1px 2px rgba(180, 52, 16, 0.20), 0 10px 24px -10px rgba(244, 90, 40, 0.45)',
-        card: '0 1px 2px rgba(28, 24, 21, 0.05), 0 12px 28px -18px rgba(28, 24, 21, 0.22)',
-        sheet: '0 -8px 40px -12px rgba(28, 24, 21, 0.28)',
+        // Soft, neutral, restrained — like the reference cards.
+        pop: '0 1px 2px rgba(28, 24, 21, 0.08), 0 12px 26px -14px rgba(28, 24, 21, 0.30)',
+        card: '0 1px 2px rgba(28, 24, 21, 0.04), 0 14px 32px -20px rgba(28, 24, 21, 0.22)',
+        sheet: '0 -8px 44px -14px rgba(28, 24, 21, 0.30)',
+      },
+      letterSpacing: {
+        tightish: '-0.01em',
       },
       keyframes: {
         wiggle: {

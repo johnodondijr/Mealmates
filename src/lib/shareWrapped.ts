@@ -16,24 +16,24 @@ export async function shareWrapped(w: Wrapped, householdName: string): Promise<v
 
   // Background gradient (warm, appetizing).
   const grad = ctx.createLinearGradient(0, 0, width, height)
-  grad.addColorStop(0, '#F45A28')
-  grad.addColorStop(0.55, '#F59300')
-  grad.addColorStop(1, '#C2478E')
+  grad.addColorStop(0, '#6EA630')
+  grad.addColorStop(0.6, '#578A24')
+  grad.addColorStop(1, '#42691C')
   ctx.fillStyle = grad
   roundRect(ctx, 0, 0, width, height, 0)
   ctx.fill()
 
   ctx.textAlign = 'center'
   ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.font = '700 22px "Baloo 2", sans-serif'
+  ctx.font = '700 22px "Plus Jakarta Sans", sans-serif'
   ctx.fillText('🍲 MealMates', width / 2, 64)
 
   ctx.fillStyle = '#ffffff'
-  ctx.font = '800 44px "Baloo 2", sans-serif'
+  ctx.font = '800 44px "Plus Jakarta Sans", sans-serif'
   ctx.fillText('Household Wrapped', width / 2, 118)
 
   ctx.fillStyle = 'rgba(255,255,255,0.9)'
-  ctx.font = '700 20px "Baloo 2", sans-serif'
+  ctx.font = '700 20px "Plus Jakarta Sans", sans-serif'
   ctx.fillText(`${householdName} · ${w.monthLabel}`, width / 2, 150)
 
   const cards: Array<[string, string, string]> = [
@@ -65,11 +65,11 @@ export async function shareWrapped(w: Wrapped, householdName: string): Promise<v
     ctx.fillText(emoji, 52, y + cardH / 2 + 14)
 
     ctx.fillStyle = 'rgba(255,255,255,0.8)'
-    ctx.font = '700 16px "Baloo 2", sans-serif'
+    ctx.font = '700 16px "Plus Jakarta Sans", sans-serif'
     ctx.fillText(label.toUpperCase(), 112, y + 38)
 
     ctx.fillStyle = '#ffffff'
-    ctx.font = '800 24px "Baloo 2", sans-serif'
+    ctx.font = '800 24px "Plus Jakarta Sans", sans-serif'
     ctx.fillText(truncate(ctx, value, width - 160), 112, y + 68)
 
     y += cardH + 14
@@ -77,7 +77,7 @@ export async function shareWrapped(w: Wrapped, householdName: string): Promise<v
 
   ctx.textAlign = 'center'
   ctx.fillStyle = 'rgba(255,255,255,0.8)'
-  ctx.font = '700 16px "Baloo 2", sans-serif'
+  ctx.font = '700 16px "Plus Jakarta Sans", sans-serif'
   ctx.fillText('Made with MealMates 🎰', width / 2, height - 28)
 
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/png'))

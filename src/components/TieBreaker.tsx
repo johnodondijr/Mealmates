@@ -10,7 +10,7 @@ interface TieBreakerProps {
   onResult: (option: VoteOption) => void
 }
 
-const SEGMENT_COLORS = ['#F45A28', '#F59300', '#6B942A', '#C2478E']
+const SEGMENT_COLORS = ['#6EA630', '#F5B10A', '#42691C', '#A1CC6A']
 
 // A dramatic spinning wheel so ties never cause arguments.
 export function TieBreaker({ options, onClose, onResult }: TieBreakerProps) {

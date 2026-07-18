@@ -47,7 +47,7 @@ export function StatsScreen() {
           {/* soft warm highlight, not a rainbow */}
           <div
             className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full opacity-40 blur-2xl"
-            style={{ background: 'radial-gradient(circle, #FFC44D 0%, transparent 70%)' }}
+            style={{ background: 'radial-gradient(circle, #F6C043 0%, transparent 70%)' }}
           />
           <div className="relative flex items-center justify-between">
             <div>

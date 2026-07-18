@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 
-const COLORS = ['#F45A28', '#F59300', '#6B942A', '#C2478E', '#FFC44D']
+const COLORS = ['#6EA630', '#F5B10A', '#42691C', '#A1CC6A', '#22201B']
 
 interface Piece {
   id: number
