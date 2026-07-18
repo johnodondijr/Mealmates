@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, PiggyBank, RefreshCw, Sparkles } from 'lucide-react'
+import { Check, PiggyBank, RefreshCw, Sparkles, X } from 'lucide-react'
 import { useApp, mealFromCombo } from '../store/AppContext'
 import {
   buildCombo,
@@ -51,6 +51,14 @@ export function DecideScreen() {
   const [costOpen, setCostOpen] = useState(false)
   // Signatures of the last few results so a re-spin doesn't repeat them.
   const [recentSigs, setRecentSigs] = useState<string[]>([])
+  const [tipDismissed, setTipDismissed] = useState(
+    () => localStorage.getItem('mealmates.tip1') === '1',
+  )
+  const showTip = !tipDismissed && data.meals.length === 0
+  const dismissTip = () => {
+    setTipDismissed(true)
+    localStorage.setItem('mealmates.tip1', '1')
+  }
 
   const spinning = spinningSlots.some(Boolean)
 
@@ -174,8 +182,26 @@ export function DecideScreen() {
       <ScreenHeader
         title="What are we"
         muted="eating today?"
-        subtitle={`Hey ${currentMember?.name}, let MealMates settle it.`}
+        subtitle={`Hey ${currentMember?.name} — let MealMates pick for you. Prefer to choose? Build a plate in Foods.`}
       />
+
+      {/* First-run tip */}
+      {showTip && (
+        <div className="flex items-start gap-2.5 rounded-2xl bg-mango-50 p-3 ring-1 ring-mango-200 dark:bg-mango-500/10 dark:ring-mango-500/25">
+          <span className="text-lg leading-none">👋</span>
+          <p className="flex-1 text-sm font-medium leading-snug text-charcoal-800/80 dark:text-cream/75">
+            Welcome! You're set up as <b>{currentMember?.name}</b>. Tap the ⚙️ up
+            top to rename yourself, add housemates, or set a budget.
+          </p>
+          <button
+            onClick={dismissTip}
+            aria-label="Dismiss"
+            className="shrink-0 rounded-full p-1 text-charcoal-800/40 hover:text-charcoal-900 dark:text-cream/40"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Slot picker */}
       <div className="flex gap-2">
@@ -322,10 +348,10 @@ export function DecideScreen() {
                 >
                   {logged ? (
                     <>
-                      <Check size={18} /> Picked!
+                      <Check size={18} /> Logged!
                     </>
                   ) : (
-                    <>🍽️ Pick this meal</>
+                    <>🍽️ Eat this</>
                   )}
                 </Button>
               </div>

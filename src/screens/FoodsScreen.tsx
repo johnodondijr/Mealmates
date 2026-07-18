@@ -62,6 +62,7 @@ export function FoodsScreen() {
   // The plate being built. Base/protein/veg are single slots; treats and
   // fruits can stack.
   const [plate, setPlate] = useState<Food[]>([])
+  const [mealSlot, setMealSlot] = useState<MealSlot>('dinner')
   const [flying, setFlying] = useState<Fly[]>([])
   const [cookOpen, setCookOpen] = useState(false)
 
@@ -137,7 +138,7 @@ export function FoodsScreen() {
     await logMeal(
       mealFromCombo(
         plateFoods.map((f) => f.name).join(' + '),
-        plateSlot(plate),
+        mealSlot,
         {
           base_id: mainBase?.id ?? null,
           protein_id: mainProtein?.id ?? null,
@@ -163,7 +164,7 @@ export function FoodsScreen() {
       totalCost: plateFoods.reduce((s, f) => s + f.cost, 0),
       reasons: [],
     }
-    const slot = plateSlot(plate)
+    const slot = mealSlot
     const alts = buildCandidates(
       data,
       { budgetMode: data.settings.budget_mode, presentMemberIds: data.members.map((m) => m.id), slot },
@@ -187,10 +188,10 @@ export function FoodsScreen() {
   }
 
   return (
-    <div className={cn('px-4 pb-4', plateCount > 0 && 'pb-52')}>
+    <div className={cn('px-4 pb-4', plateCount > 0 && 'pb-64')}>
       <ScreenHeader
         title="Foods"
-        subtitle="Tap foods to build a plate, then cook it or put it to a vote."
+        subtitle="Build a plate yourself — then eat it or put it to a vote."
       />
 
       {/* Search */}
@@ -407,12 +408,29 @@ export function FoodsScreen() {
                   <X size={18} />
                 </button>
               </div>
-              <div className="mt-3 flex gap-2">
+              {/* Which meal is this? */}
+              <div className="mt-3 flex gap-1.5">
+                {SLOTS.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setMealSlot(s.id)}
+                    className={cn(
+                      'flex-1 rounded-xl py-1.5 font-display text-xs font-bold transition-colors',
+                      mealSlot === s.id
+                        ? 'bg-paprika-500 text-white'
+                        : 'bg-cream text-charcoal-800/60 dark:bg-charcoal-950 dark:text-cream/50',
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
                 <Button variant="secondary" onClick={putToVote} className="flex-1">
                   <ListChecks size={17} /> Put to vote
                 </Button>
                 <Button onClick={() => setCookOpen(true)} className="flex-1">
-                  🍽️ Cook this
+                  🍽️ Eat this
                 </Button>
               </div>
             </div>
@@ -445,10 +463,8 @@ export function FoodsScreen() {
   )
 }
 
-// Breakfast plate → breakfast slot; otherwise a main meal.
-function plateSlot(plate: Food[]): MealSlot {
-  const has = (c: FoodCategory) => plate.some((f) => f.category === c)
-  const breakfasty = has('drink') || has('breakfast')
-  const mainy = has('base') || has('protein') || has('veg')
-  return breakfasty && !mainy ? 'breakfast' : 'dinner'
-}
+const SLOTS: { id: MealSlot; label: string }[] = [
+  { id: 'breakfast', label: 'Breakfast' },
+  { id: 'lunch', label: 'Lunch' },
+  { id: 'dinner', label: 'Dinner' },
+]
