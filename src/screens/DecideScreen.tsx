@@ -161,12 +161,12 @@ export function DecideScreen() {
         ))}
       </div>
 
-      {/* Who's eating */}
-      <Card className="p-4">
-        <p className="mb-3 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
+      {/* Who's eating — sits on the canvas, no heavy container */}
+      <div>
+        <p className="mb-3 px-1 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
           Who's eating?
         </p>
-        <div className="flex justify-around gap-2">
+        <div className="flex justify-between gap-2">
           {data.members.map((m) => {
             const on = present.includes(m.id)
             return (
@@ -210,7 +210,7 @@ export function DecideScreen() {
             )
           })}
         </div>
-      </Card>
+      </div>
 
       {/* Slot machine */}
       <Card className="overflow-hidden p-4">

@@ -17,7 +17,15 @@ import { newId } from '../lib/id'
 const STORAGE_KEY = 'mealmates.data.v1'
 const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
-const CURRENT_SCHEMA = 4
+const CURRENT_SCHEMA = 5
+
+// Old loud member colours → curated muted equivalents.
+const MEMBER_RECOLOR: Record<string, string> = {
+  '#F45A28': '#C4704F',
+  '#F59300': '#C79A3E',
+  '#6B942A': '#6B8E5A',
+  '#C2478E': '#9A6E8A',
+}
 
 // Matches any drink/liquid so we never let one sit in the solid breakfast reel.
 const LIQUID_HINT = /\b(tea|coffee|uji|porridge|milk|milo|cocoa|juice|smoothie|chocolate)\b/i
@@ -59,6 +67,11 @@ function applyFixups(data: AppData): boolean {
   }
   // Drop legacy combined seed items.
   data.foods = data.foods.filter((f) => !LEGACY_COMBINED.has(f.id))
+
+  // Refresh the old loud default member colours to the muted palette.
+  for (const m of data.members) {
+    if (MEMBER_RECOLOR[m.color]) m.color = MEMBER_RECOLOR[m.color]
+  }
 
   // Add any new seed drinks/breakfast solids that aren't present yet.
   const existing = new Set(data.foods.map((f) => f.id))

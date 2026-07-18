@@ -17,7 +17,7 @@ const AVATAR_EMOJIS = [
 ]
 
 const COLORS = [
-  '#F45A28','#F59300','#6B942A','#C2478E','#3B82F6','#8B5CF6','#EF4444','#14B8A6',
+  '#C4704F','#C79A3E','#6B8E5A','#9A6E8A','#4E8478','#6E7FA3','#B5714E','#8A8577',
 ]
 
 export function MemberEditor({ member, onClose, makeId }: MemberEditorProps) {

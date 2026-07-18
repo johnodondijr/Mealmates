@@ -20,15 +20,12 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
     <header className="sticky top-0 z-20 bg-cream/85 backdrop-blur-lg dark:bg-charcoal-950/85 safe-top">
       <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">🍲</span>
-          <div className="leading-none">
-            <h1 className="font-display text-xl font-extrabold text-charcoal-900 dark:text-cream">
-              MealMates
-            </h1>
-            <p className="text-[11px] font-semibold text-charcoal-800/50 dark:text-cream/40">
-              {data.settings.household_name}
-            </p>
-          </div>
+          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-paprika-500 text-lg shadow-pop">
+            🍲
+          </span>
+          <h1 className="font-logo text-[1.35rem] font-semibold leading-none tracking-tight text-charcoal-900 dark:text-cream">
+            Meal<span className="text-paprika-500">Mates</span>
+          </h1>
         </div>
 
         <div className="flex items-center gap-2">

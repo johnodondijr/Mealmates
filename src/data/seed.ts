@@ -167,7 +167,8 @@ for (const f of SEED_FOODS) {
   f.texture = TEXTURE_MAP[f.id] ?? 'neutral'
 }
 
-const COLORS = ['#F45A28', '#F59300', '#6B942A', '#C2478E']
+// Curated, muted earthy palette that blends with the greige/green system.
+const COLORS = ['#C4704F', '#C79A3E', '#6B8E5A', '#9A6E8A']
 const EMOJIS = ['🦁', '🌸', '🚀', '🦋']
 const NAMES = ['Fred', 'Girlfriend', 'Friend', "Friend's GF"]
 

@@ -190,15 +190,18 @@ export function FoodsScreen() {
               <div
                 onClick={() => toggleWish(food)}
                 className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-3xl bg-white p-3 shadow-card transition-all active:scale-[0.99] dark:bg-charcoal-800/80',
-                  iWant && 'ring-2 ring-avocado-400',
-                  refuses > 0 && !iWant && 'ring-1 ring-red-300/60 dark:ring-red-500/30',
+                  'flex cursor-pointer items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 transition-all active:scale-[0.99] dark:bg-charcoal-800/70',
+                  iWant
+                    ? 'ring-2 ring-paprika-400'
+                    : refuses > 0
+                      ? 'ring-red-300/50 dark:ring-red-500/25'
+                      : 'ring-charcoal-900/[0.04] dark:ring-white/[0.05]',
                 )}
               >
                 <div
                   className={cn(
-                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-2xl',
-                    iWant ? 'bg-avocado-100 dark:bg-avocado-500/20' : 'bg-cream dark:bg-charcoal-950',
+                    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl',
+                    iWant ? 'bg-paprika-100 dark:bg-paprika-500/20' : 'bg-cream dark:bg-charcoal-950',
                   )}
                 >
                   {food.emoji}

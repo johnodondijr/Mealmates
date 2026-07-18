@@ -148,12 +148,12 @@ export function VoteCard({ vote }: VoteCardProps) {
               disabled={isClosed}
               onClick={() => !isClosed && castBallot(vote.id, o.id)}
               className={cn(
-                'relative w-full overflow-hidden rounded-2xl border-2 p-3 text-left transition-colors',
+                'relative w-full overflow-hidden rounded-2xl p-3 text-left ring-1 transition-colors',
                 isWinner
-                  ? 'border-mango-400 bg-mango-50 dark:bg-mango-500/10'
+                  ? 'bg-mango-50 ring-mango-300 dark:bg-mango-500/10 dark:ring-mango-500/30'
                   : mine
-                    ? 'border-paprika-400 bg-paprika-50 dark:bg-paprika-500/10'
-                    : 'border-transparent bg-cream dark:bg-charcoal-950',
+                    ? 'bg-paprika-50 ring-paprika-300 dark:bg-paprika-500/10 dark:ring-paprika-500/30'
+                    : 'bg-cream ring-charcoal-900/[0.04] dark:bg-charcoal-950 dark:ring-white/[0.05]',
               )}
             >
               {/* animated result bar */}

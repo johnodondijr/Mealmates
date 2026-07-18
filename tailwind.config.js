@@ -28,6 +28,7 @@ export default {
       fontFamily: {
         display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
         body: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        logo: ['Fredoka', '"Plus Jakarta Sans"', 'sans-serif'],
       },
       colors: {
         // Warm greige canvas
