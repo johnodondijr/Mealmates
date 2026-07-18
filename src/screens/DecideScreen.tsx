@@ -11,7 +11,6 @@ import {
 } from '../engine/suggest'
 import type { MealSlot, ScoredCombo } from '../types'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { StatChip } from '../components/ui/StatChip'
@@ -212,21 +211,21 @@ export function DecideScreen() {
         </div>
       </div>
 
-      {/* Slot machine */}
-      <Card className="overflow-hidden p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="font-display text-sm font-semibold text-charcoal-800/60 dark:text-cream/50">
-            🎰 {SLOT_REEL_LABELS[slot].join(' · ')}
+      {/* Slot machine — sits open on the canvas */}
+      <div className="overflow-hidden">
+        <div className="mb-3 flex items-center justify-between px-1">
+          <span className="font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
+            {SLOT_REEL_LABELS[slot].join(' · ')}
           </span>
           <button
             onClick={() =>
               updateSettings({ ...data.settings, budget_mode: !budgetMode })
             }
             className={cn(
-              'flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-colors',
+              'flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition-colors',
               budgetMode
-                ? 'bg-avocado-500 text-white'
-                : 'bg-charcoal-50 text-charcoal-800/60 dark:bg-charcoal-800 dark:text-cream/50',
+                ? 'bg-paprika-500 text-white'
+                : 'bg-white text-charcoal-800/60 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:text-cream/50 dark:ring-white/[0.06]',
             )}
           >
             <PiggyBank size={14} /> Budget {budgetMode ? 'ON' : 'OFF'}
@@ -244,7 +243,7 @@ export function DecideScreen() {
               exit={{ opacity: 0, height: 0 }}
               className="mt-4"
             >
-              <div className="rounded-3xl bg-cream/70 p-4 dark:bg-charcoal-950/70">
+              <div className="rounded-3xl bg-white p-4 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800/70 dark:ring-white/[0.06]">
                 <p className="text-center font-display text-[1.35rem] font-extrabold leading-tight tracking-[-0.02em] text-charcoal-900 dark:text-cream">
                   {comboLabel(combo) || 'Add more foods to mix!'}
                 </p>
@@ -298,7 +297,7 @@ export function DecideScreen() {
             </motion.div>
           )}
         </AnimatePresence>
-      </Card>
+      </div>
 
       {/* Hero actions */}
       <div className="grid grid-cols-1 gap-2.5">

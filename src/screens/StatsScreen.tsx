@@ -87,15 +87,13 @@ export function StatsScreen() {
         </div>
       </Card>
 
-      {/* Most eaten combos */}
-      <h3 className="mt-5 mb-2 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
-        Most eaten this month
-      </h3>
+      {/* Most eaten combos — open on the canvas */}
+      <SectionLabel>Most eaten this month</SectionLabel>
       {combos.length > 0 ? (
-        <Card className="space-y-3 p-4">
+        <div className="space-y-3.5 px-1">
           {combos.slice(0, 6).map((c) => (
             <div key={c.label}>
-              <div className="mb-1 flex items-center justify-between">
+              <div className="mb-1.5 flex items-center justify-between">
                 <span className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
                   {c.emojis} {c.label}
                 </span>
@@ -103,7 +101,7 @@ export function StatsScreen() {
                   ×{c.count}
                 </span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-charcoal-50 dark:bg-charcoal-950">
+              <div className="h-2 overflow-hidden rounded-full bg-charcoal-900/[0.06] dark:bg-white/[0.06]">
                 <motion.div
                   className="h-full rounded-full bg-paprika-400"
                   initial={{ width: 0 }}
@@ -113,62 +111,56 @@ export function StatsScreen() {
               </div>
             </div>
           ))}
-        </Card>
+        </div>
       ) : (
         <EmptyBlurb emoji="🍜" text="No meals logged this month yet." />
       )}
 
-      {/* Heatmap */}
-      <h3 className="mt-5 mb-2 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
-        Last 4 weeks
-      </h3>
-      <Card className="p-4">
+      {/* Heatmap — open on the canvas */}
+      <SectionLabel>Last 4 weeks</SectionLabel>
+      <div className="px-1">
         <div className="grid grid-cols-7 gap-1.5">
           {cells.map((cell) => (
             <div
               key={cell.date}
               title={cell.meal ? `${cell.date}: ${cell.meal.label}` : cell.date}
               className={cn(
-                'flex aspect-square items-center justify-center rounded-lg text-base',
+                'flex aspect-square items-center justify-center rounded-xl text-base',
                 cell.meal
                   ? 'bg-avocado-100 dark:bg-avocado-500/20'
-                  : 'bg-charcoal-50 dark:bg-charcoal-950',
+                  : 'bg-charcoal-900/[0.05] dark:bg-white/[0.05]',
               )}
             >
               {cell.emojis ? cell.emojis.slice(0, 2) : ''}
             </div>
           ))}
         </div>
-        <p className="mt-2 text-center text-xs font-semibold text-charcoal-800/40 dark:text-cream/40">
+        <p className="mt-2.5 text-center text-xs font-medium text-charcoal-800/40 dark:text-cream/40">
           Each square is a day · emoji = what you ate
         </p>
-      </Card>
+      </div>
 
-      {/* Days since */}
+      {/* Frequent foods — open chips */}
       {freq.length > 0 && (
         <>
-          <h3 className="mt-5 mb-2 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
-            Frequent foods
-          </h3>
-          <Card className="p-4">
-            <div className="flex flex-wrap gap-2">
-              {freq.slice(0, 10).map((f) => (
-                <div
-                  key={f.food.id}
-                  className="flex items-center gap-1.5 rounded-full bg-cream px-3 py-1.5 dark:bg-charcoal-950"
-                >
-                  <span>{f.food.emoji}</span>
-                  <span className="font-display text-xs font-bold text-charcoal-900 dark:text-cream">
-                    {f.food.name}
-                  </span>
-                  <span className="text-xs font-bold text-charcoal-800/40 dark:text-cream/40">
-                    ×{f.count}
-                    {f.daysSinceLast !== null && ` · ${f.daysSinceLast}d ago`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <SectionLabel>Frequent foods</SectionLabel>
+          <div className="flex flex-wrap gap-2 px-1">
+            {freq.slice(0, 10).map((f) => (
+              <div
+                key={f.food.id}
+                className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:ring-white/[0.06]"
+              >
+                <span>{f.food.emoji}</span>
+                <span className="font-display text-xs font-bold text-charcoal-900 dark:text-cream">
+                  {f.food.name}
+                </span>
+                <span className="text-xs font-bold text-charcoal-800/40 dark:text-cream/40">
+                  ×{f.count}
+                  {f.daysSinceLast !== null && ` · ${f.daysSinceLast}d`}
+                </span>
+              </div>
+            ))}
+          </div>
         </>
       )}
 
@@ -179,9 +171,7 @@ export function StatsScreen() {
         </Button>
       </div>
 
-      <h3 className="mb-2 mt-6 px-1 font-display text-sm font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
-        Meal history
-      </h3>
+      <SectionLabel>Meal history</SectionLabel>
       {history.length > 0 ? (
         <Card flat className="divide-y divide-charcoal-900/[0.05] overflow-hidden dark:divide-white/[0.06]">
           {history.map((m) => {
@@ -236,6 +226,14 @@ function WrapTile({ emoji, label, value }: { emoji: string; label: string; value
       </p>
       <p className="truncate font-display text-sm font-extrabold">{value}</p>
     </div>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="mb-3 mt-7 px-1 font-display text-[0.8rem] font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
+      {children}
+    </h3>
   )
 }
 

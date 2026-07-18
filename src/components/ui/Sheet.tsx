@@ -23,25 +23,25 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
             onClick={onClose}
           />
           <motion.div
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl bg-cream p-5 pb-8 shadow-2xl dark:bg-charcoal-900 no-scrollbar safe-bottom"
+            className="no-scrollbar safe-bottom fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto rounded-t-[2rem] bg-cream px-5 pb-9 pt-3 shadow-sheet dark:bg-charcoal-950"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320 }}
           >
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-charcoal-100 dark:bg-charcoal-800" />
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mx-auto mb-5 h-1.5 w-10 rounded-full bg-charcoal-900/15 dark:bg-white/15" />
+            <div className="mb-5 flex items-center justify-between">
               {title && (
-                <h2 className="font-display text-2xl font-extrabold text-charcoal-900 dark:text-cream">
+                <h2 className="font-display text-[1.6rem] font-extrabold tracking-[-0.02em] text-charcoal-900 dark:text-cream">
                   {title}
                 </h2>
               )}
               <button
                 onClick={onClose}
-                className="ml-auto rounded-full p-2 text-charcoal-800 hover:bg-black/5 dark:text-cream dark:hover:bg-white/10"
+                className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-charcoal-800 ring-1 ring-charcoal-900/[0.05] active:scale-95 dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.06]"
                 aria-label="Close"
               >
-                <X size={22} />
+                <X size={19} />
               </button>
             </div>
             {children}

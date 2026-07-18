@@ -141,7 +141,7 @@ export function FoodsScreen() {
       )}
 
       {/* Search */}
-      <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 shadow-card dark:bg-charcoal-800">
+      <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:ring-white/[0.06]">
         <Search size={18} className="text-charcoal-800/40 dark:text-cream/40" />
         <input
           value={query}
