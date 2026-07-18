@@ -3,6 +3,7 @@ import type {
   AppData,
   Expense,
   Food,
+  FoodCategory,
   MealEaten,
   Member,
   Preference,
@@ -18,7 +19,7 @@ import { newId } from '../lib/id'
 const STORAGE_KEY = 'mealmates.data.v2'
 const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
-const CURRENT_SCHEMA = 6
+const CURRENT_SCHEMA = 7
 
 // Old loud member colours → curated muted equivalents.
 const MEMBER_RECOLOR: Record<string, string> = {
@@ -79,12 +80,22 @@ function applyFixups(data: AppData): boolean {
   const sausages = data.foods.find((f) => f.id === 'food_sausages')
   if (sausages && sausages.category === 'protein') sausages.category = 'breakfast'
 
-  // Add any new seed drinks/breakfast solids that aren't present yet.
+  // Recategorise: fruits are their own group; pilau/biryani are main meals.
+  const recat: Record<string, FoodCategory> = {
+    food_avocado: 'fruit',
+    food_pilau: 'base',
+    food_biryani: 'base',
+  }
+  for (const f of data.foods) {
+    if (recat[f.id]) f.category = recat[f.id]
+  }
+  // Retire the combined "Ugali + Matumbo" treat (Matumbo is now its own food).
+  data.foods = data.foods.filter((f) => f.id !== 'food_ugali_matumbo')
+
+  // Add any new seed foods (across all categories) that aren't present yet.
   const existing = new Set(data.foods.map((f) => f.id))
   for (const f of buildSeedData().foods) {
-    if ((f.category === 'drink' || f.category === 'breakfast') && !existing.has(f.id)) {
-      data.foods.push(f)
-    }
+    if (!existing.has(f.id)) data.foods.push(f)
   }
 
   localStorage.setItem(SCHEMA_KEY, String(CURRENT_SCHEMA))

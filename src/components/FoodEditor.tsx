@@ -19,6 +19,7 @@ const CATEGORIES: { id: FoodCategory; label: string }[] = [
   { id: 'base', label: 'Base' },
   { id: 'protein', label: 'Protein' },
   { id: 'veg', label: 'Veg' },
+  { id: 'fruit', label: 'Fruit' },
   { id: 'drink', label: 'Drink' },
   { id: 'breakfast', label: 'Breakfast' },
   { id: 'treat', label: 'Treat' },

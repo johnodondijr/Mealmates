@@ -18,13 +18,24 @@ const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = [
   { id: 'base', label: 'Bases', emoji: '🍚' },
   { id: 'protein', label: 'Proteins', emoji: '🍗' },
   { id: 'veg', label: 'Veggies', emoji: '🥬' },
+  { id: 'fruit', label: 'Fruits', emoji: '🍎' },
   { id: 'drink', label: 'Drinks', emoji: '🍵' },
   { id: 'breakfast', label: 'Breakfast', emoji: '🍳' },
-  { id: 'treat', label: 'Treats', emoji: '🍛' },
+  { id: 'treat', label: 'Treats', emoji: '🍩' },
 ]
 
 // Order plated foods read naturally in a meal.
-const PLATE_ORDER: FoodCategory[] = ['base', 'drink', 'protein', 'breakfast', 'veg', 'treat']
+const PLATE_ORDER: FoodCategory[] = [
+  'base',
+  'drink',
+  'protein',
+  'breakfast',
+  'veg',
+  'fruit',
+  'treat',
+]
+// Categories you can stack several of on one plate.
+const MULTI = new Set<FoodCategory>(['treat', 'fruit'])
 
 interface Fly {
   id: number
@@ -41,8 +52,9 @@ export function FoodsScreen() {
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Food | null | undefined>(undefined)
 
-  // The plate being built: one food per category.
-  const [plate, setPlate] = useState<Partial<Record<FoodCategory, Food>>>({})
+  // The plate being built. Base/protein/veg are single slots; treats and
+  // fruits can stack.
+  const [plate, setPlate] = useState<Food[]>([])
   const [flying, setFlying] = useState<Fly[]>([])
   const [cookOpen, setCookOpen] = useState(false)
 
@@ -72,11 +84,12 @@ export function FoodsScreen() {
   }, [data.foods, cat, query])
 
   const plateFoods = useMemo(
-    () => PLATE_ORDER.map((c) => plate[c]).filter(Boolean) as Food[],
+    () => PLATE_ORDER.flatMap((c) => plate.filter((f) => f.category === c)),
     [plate],
   )
-  const plateCount = plateFoods.length
+  const plateCount = plate.length
   const isComplete = plateCount >= 2
+  const isOnPlate = (food: Food) => plate.some((f) => f.id === food.id)
 
   const togglePref = (food: Food, pref: 'love' | 'refuse') => {
     const current = prefFor.get(food.id)
@@ -84,12 +97,12 @@ export function FoodsScreen() {
   }
 
   const togglePlate = (food: Food, e: MouseEvent) => {
-    const onPlate = plate[food.category]?.id === food.id
-    setPlate((p) => {
-      const next = { ...p }
-      if (onPlate) delete next[food.category]
-      else next[food.category] = food
-      return next
+    const onPlate = isOnPlate(food)
+    setPlate((prev) => {
+      if (onPlate) return prev.filter((f) => f.id !== food.id)
+      if (MULTI.has(food.category)) return [...prev, food]
+      // Single slot — replace any existing food of the same category.
+      return [...prev.filter((f) => f.category !== food.category), food]
     })
     if (!onPlate && !reduce) {
       const id = Math.random()
@@ -98,14 +111,23 @@ export function FoodsScreen() {
     }
   }
 
+  const mainBase = plate.find((f) => f.category === 'base' || f.category === 'drink')
+  const mainProtein = plate.find(
+    (f) => f.category === 'protein' || f.category === 'breakfast',
+  )
+  const mainVeg = plate.find((f) => f.category === 'veg')
+
   // Log the plate directly as a meal (with pricing).
   const cookConfirm = async (costs: MealCost[]) => {
-    const [a, b, c] = plateFoods
     await logMeal(
       mealFromCombo(
         plateFoods.map((f) => f.name).join(' + '),
         plateSlot(plate),
-        { base_id: a?.id ?? null, protein_id: b?.id ?? null, veg_id: c?.id ?? null },
+        {
+          base_id: mainBase?.id ?? null,
+          protein_id: mainProtein?.id ?? null,
+          veg_id: mainVeg?.id ?? null,
+        },
         0,
         currentMemberId,
         null,
@@ -113,16 +135,15 @@ export function FoodsScreen() {
       ),
     )
     setCookOpen(false)
-    setPlate({})
+    setPlate([])
   }
 
   // Turn the plate into a vote (plate = first option + a few alternatives).
   const putToVote = async () => {
-    const [a, b, c] = plateFoods
     const plateCombo: ScoredCombo = {
-      base: a,
-      protein: b,
-      veg: c,
+      base: mainBase,
+      protein: mainProtein,
+      veg: mainVeg,
       score: 0,
       totalCost: plateFoods.reduce((s, f) => s + f.cost, 0),
       reasons: [],
@@ -146,7 +167,7 @@ export function FoodsScreen() {
     if (combos.length < 2) return
     const { vote, options } = buildVoteFromCombos(currentMemberId, slot, "What's for dinner?", combos)
     await createVote(vote, options)
-    setPlate({})
+    setPlate([])
     setTab('vote')
   }
 
@@ -194,7 +215,7 @@ export function FoodsScreen() {
           const mine = prefFor.get(food.id)
           const refuses = counts.refuse.get(food.id) ?? 0
           const loves = counts.love.get(food.id) ?? 0
-          const onPlate = plate[food.category]?.id === food.id
+          const onPlate = isOnPlate(food)
           const avg = foodAvgCost(data, food.id)
           return (
             <motion.div
@@ -364,7 +385,7 @@ export function FoodsScreen() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setPlate({})}
+                  onClick={() => setPlate([])}
                   className="rounded-full p-1.5 text-charcoal-800/40 hover:text-red-500 dark:text-cream/40"
                   aria-label="Clear plate"
                 >
@@ -410,8 +431,9 @@ export function FoodsScreen() {
 }
 
 // Breakfast plate → breakfast slot; otherwise a main meal.
-function plateSlot(plate: Partial<Record<FoodCategory, Food>>): MealSlot {
-  const breakfasty = plate.drink || plate.breakfast
-  const mainy = plate.base || plate.protein || plate.veg
+function plateSlot(plate: Food[]): MealSlot {
+  const has = (c: FoodCategory) => plate.some((f) => f.category === c)
+  const breakfasty = has('drink') || has('breakfast')
+  const mainy = has('base') || has('protein') || has('veg')
   return breakfasty && !mainy ? 'breakfast' : 'dinner'
 }
