@@ -93,14 +93,14 @@ function Reel({ pool, target, label, spinning, delay, onStop, onSwap }: ReelProp
         </motion.div>
       )}
 
-      {/* Swap just this part */}
+      {/* Swap just this part — top-right so it never sits on the name */}
       {landed && onSwap && (
         <button
           onClick={onSwap}
           aria-label={`Swap ${label}`}
-          className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-charcoal-900/85 text-white shadow-pop active:scale-90 dark:bg-cream dark:text-charcoal-950"
+          className="absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-charcoal-900/85 text-white shadow-pop active:scale-90 dark:bg-cream dark:text-charcoal-950"
         >
-          <RefreshCw size={14} strokeWidth={2.6} />
+          <RefreshCw size={13} strokeWidth={2.6} />
         </button>
       )}
 

@@ -264,7 +264,7 @@ export function DecideScreen() {
       )}
 
       {/* Slot machine — sits open on the canvas */}
-      <div className="overflow-hidden">
+      <div>
         <div className="mb-3 flex items-center justify-between px-1">
           <span className="font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
             {SLOT_REEL_LABELS[slot].join(' · ')}
@@ -294,9 +294,10 @@ export function DecideScreen() {
         <AnimatePresence>
           {combo && revealed && !spinning && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
               className="mt-4"
             >
               <div className="rounded-3xl bg-white p-4 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800/70 dark:ring-white/[0.06]">
