@@ -281,10 +281,10 @@ export function DecideScreen() {
                 >
                   {logged ? (
                     <>
-                      <Check size={18} /> Logged!
+                      <Check size={18} /> Picked!
                     </>
                   ) : (
-                    <>🍳 Cook it up</>
+                    <>🍽️ Pick this meal</>
                   )}
                 </Button>
               </div>
@@ -309,7 +309,7 @@ export function DecideScreen() {
                 <Sparkles size={20} className="animate-pulse text-mango-400" /> Spinning…
               </>
             ) : (
-              <>🎰 Decide for us</>
+              <>🎰 Spin for a meal</>
             )}
           </Button>
           <p className="mt-2 text-center text-xs font-medium text-charcoal-800/45 dark:text-cream/40">
@@ -320,9 +320,9 @@ export function DecideScreen() {
 
       {costOpen && combo && (
         <MealCostSheet
-          title="Cook it up 🍳"
+          title="What did it cost?"
           items={costItems(combo)}
-          confirmLabel="Log meal & costs ✅"
+          confirmLabel="Save meal ✅"
           onClose={() => setCostOpen(false)}
           onConfirm={logWithCosts}
         />

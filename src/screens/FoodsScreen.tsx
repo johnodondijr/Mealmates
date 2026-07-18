@@ -1,18 +1,17 @@
-import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Ban, Check, Heart, Pencil, Plus, Search, Utensils, Vote } from 'lucide-react'
-import { useApp } from '../store/AppContext'
+import { useMemo, useState, type MouseEvent } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { Ban, Check, Heart, ListChecks, Pencil, Plus, Search, X } from 'lucide-react'
+import { useApp, mealFromCombo } from '../store/AppContext'
 import { useNav } from '../store/NavContext'
-import type { Food, FoodCategory, MealSlot } from '../types'
-import { Card } from '../components/ui/Card'
+import type { Food, FoodCategory, MealCost, MealSlot, ScoredCombo } from '../types'
 import { Button } from '../components/ui/Button'
-import { Avatar } from '../components/ui/Avatar'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
 import { FoodEditor } from '../components/FoodEditor'
-import { buildWishCandidates } from '../engine/suggest'
+import { MealCostSheet } from '../components/MealCostSheet'
+import { buildCandidates, comboSignature } from '../engine/suggest'
 import { buildVoteFromCombos } from '../lib/buildVote'
 import { foodAvgCost } from '../engine/stats'
-import { formatKES, todayISO } from '../lib/format'
+import { formatKES } from '../lib/format'
 import { cn } from '../lib/cn'
 
 const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = [
@@ -24,13 +23,28 @@ const CATEGORIES: { id: FoodCategory; label: string; emoji: string }[] = [
   { id: 'treat', label: 'Treats', emoji: '🍛' },
 ]
 
+// Order plated foods read naturally in a meal.
+const PLATE_ORDER: FoodCategory[] = ['base', 'drink', 'protein', 'breakfast', 'veg', 'treat']
+
+interface Fly {
+  id: number
+  emoji: string
+  x: number
+  y: number
+}
+
 export function FoodsScreen() {
-  const { data, currentMemberId, setPreference, setWish, createVote } = useApp()
+  const { data, currentMemberId, setPreference, createVote, logMeal } = useApp()
   const { setTab } = useNav()
+  const reduce = useReducedMotion()
   const [cat, setCat] = useState<FoodCategory>('base')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Food | null | undefined>(undefined)
-  const today = todayISO()
+
+  // The plate being built: one food per category.
+  const [plate, setPlate] = useState<Partial<Record<FoodCategory, Food>>>({})
+  const [flying, setFlying] = useState<Fly[]>([])
+  const [cookOpen, setCookOpen] = useState(false)
 
   const prefFor = useMemo(() => {
     const map = new Map<string, 'love' | 'refuse'>()
@@ -50,26 +64,6 @@ export function FoodsScreen() {
     return { love, refuse }
   }, [data.preferences])
 
-  // Who wants each food today.
-  const wishers = useMemo(() => {
-    const map = new Map<string, string[]>()
-    for (const w of data.wishes) {
-      if (w.wished_on !== today) continue
-      if (!map.has(w.food_id)) map.set(w.food_id, [])
-      map.get(w.food_id)!.push(w.member_id)
-    }
-    return map
-  }, [data.wishes, today])
-
-  const myWishCount = useMemo(
-    () => data.wishes.filter((w) => w.wished_on === today && w.member_id === currentMemberId).length,
-    [data.wishes, today, currentMemberId],
-  )
-  const totalWishesToday = useMemo(
-    () => new Set(data.wishes.filter((w) => w.wished_on === today).map((w) => w.food_id)).size,
-    [data.wishes, today],
-  )
-
   const foods = useMemo(() => {
     const q = query.trim().toLowerCase()
     return data.foods
@@ -77,68 +71,91 @@ export function FoodsScreen() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [data.foods, cat, query])
 
-  const memberById = useMemo(
-    () => new Map(data.members.map((m) => [m.id, m])),
-    [data.members],
+  const plateFoods = useMemo(
+    () => PLATE_ORDER.map((c) => plate[c]).filter(Boolean) as Food[],
+    [plate],
   )
+  const plateCount = plateFoods.length
+  const isComplete = plateCount >= 2
 
   const togglePref = (food: Food, pref: 'love' | 'refuse') => {
     const current = prefFor.get(food.id)
     setPreference(food.id, current === pref ? null : pref)
   }
 
-  const toggleWish = (food: Food) => {
-    const on = wishers.get(food.id)?.includes(currentMemberId) ?? false
-    setWish(food.id, !on)
+  const togglePlate = (food: Food, e: MouseEvent) => {
+    const onPlate = plate[food.category]?.id === food.id
+    setPlate((p) => {
+      const next = { ...p }
+      if (onPlate) delete next[food.category]
+      else next[food.category] = food
+      return next
+    })
+    if (!onPlate && !reduce) {
+      const id = Math.random()
+      setFlying((f) => [...f, { id, emoji: food.emoji, x: e.clientX, y: e.clientY }])
+      setTimeout(() => setFlying((f) => f.filter((i) => i.id !== id)), 650)
+    }
   }
 
-  const makeVoteFromPicks = async () => {
-    const combos = buildWishCandidates(
+  // Log the plate directly as a meal (with pricing).
+  const cookConfirm = async (costs: MealCost[]) => {
+    const [a, b, c] = plateFoods
+    await logMeal(
+      mealFromCombo(
+        plateFoods.map((f) => f.name).join(' + '),
+        plateSlot(plate),
+        { base_id: a?.id ?? null, protein_id: b?.id ?? null, veg_id: c?.id ?? null },
+        0,
+        currentMemberId,
+        null,
+        costs,
+      ),
+    )
+    setCookOpen(false)
+    setPlate({})
+  }
+
+  // Turn the plate into a vote (plate = first option + a few alternatives).
+  const putToVote = async () => {
+    const [a, b, c] = plateFoods
+    const plateCombo: ScoredCombo = {
+      base: a,
+      protein: b,
+      veg: c,
+      score: 0,
+      totalCost: plateFoods.reduce((s, f) => s + f.cost, 0),
+      reasons: [],
+    }
+    const slot = plateSlot(plate)
+    const alts = buildCandidates(
       data,
-      today,
-      { budgetMode: data.settings.budget_mode, presentMemberIds: data.members.map((m) => m.id) },
+      { budgetMode: data.settings.budget_mode, presentMemberIds: data.members.map((m) => m.id), slot },
       4,
     )
+    const combos = [plateCombo]
+    const seen = new Set([comboSignature(plateCombo)])
+    for (const alt of alts) {
+      const k = comboSignature(alt)
+      if (!seen.has(k)) {
+        seen.add(k)
+        combos.push(alt)
+      }
+      if (combos.length >= 4) break
+    }
     if (combos.length < 2) return
-    const slot: MealSlot = 'dinner'
-    const { vote, options } = buildVoteFromCombos(
-      currentMemberId,
-      slot,
-      "Today's picks",
-      combos,
-    )
+    const { vote, options } = buildVoteFromCombos(currentMemberId, slot, "What's for dinner?", combos)
     await createVote(vote, options)
+    setPlate({})
     setTab('vote')
   }
 
   return (
-    <div className="px-4 pb-4">
+    <div className={cn('px-4 pb-4', plateCount > 0 && 'pb-52')}>
       <ScreenHeader
-        title="Food Library"
-        subtitle={
-          <>
-            Tap a food to pick it for today. Use the icons to love, refuse or edit.
-          </>
-        }
+        title="Foods"
+        subtitle="Tap foods to build a plate, then cook it or put it to a vote."
       />
-
-      {/* Today's picks CTA */}
-      {totalWishesToday > 0 && (
-        <Card className="mt-3 flex items-center gap-3 border-2 border-avocado-300 bg-avocado-50 p-3 dark:border-avocado-500/30 dark:bg-avocado-500/10">
-          <Utensils size={20} className="shrink-0 text-avocado-600" />
-          <div className="min-w-0 flex-1">
-            <p className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
-              {totalWishesToday} food{totalWishesToday === 1 ? '' : 's'} picked for today
-            </p>
-            <p className="text-xs font-medium text-charcoal-800/60 dark:text-cream/50">
-              You've picked {myWishCount}. Turn everyone's picks into a vote.
-            </p>
-          </div>
-          <Button size="sm" onClick={makeVoteFromPicks}>
-            <Vote size={16} /> Vote
-          </Button>
-        </Card>
-      )}
 
       {/* Search */}
       <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:ring-white/[0.06]">
@@ -177,8 +194,7 @@ export function FoodsScreen() {
           const mine = prefFor.get(food.id)
           const refuses = counts.refuse.get(food.id) ?? 0
           const loves = counts.love.get(food.id) ?? 0
-          const todaysWishers = wishers.get(food.id) ?? []
-          const iWant = todaysWishers.includes(currentMemberId)
+          const onPlate = plate[food.category]?.id === food.id
           const avg = foodAvgCost(data, food.id)
           return (
             <motion.div
@@ -188,11 +204,11 @@ export function FoodsScreen() {
               transition={{ delay: Math.min(i * 0.02, 0.2) }}
             >
               <div
-                onClick={() => toggleWish(food)}
+                onClick={(e) => togglePlate(food, e)}
                 className={cn(
                   'flex cursor-pointer items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 transition-all active:scale-[0.99] dark:bg-charcoal-800/70',
                   food.available === false && 'opacity-55',
-                  iWant
+                  onPlate
                     ? 'ring-2 ring-paprika-400'
                     : refuses > 0
                       ? 'ring-red-300/50 dark:ring-red-500/25'
@@ -202,12 +218,12 @@ export function FoodsScreen() {
                 <div
                   className={cn(
                     'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl',
-                    iWant ? 'bg-paprika-100 dark:bg-paprika-500/20' : 'bg-cream dark:bg-charcoal-950',
+                    onPlate ? 'bg-paprika-100 dark:bg-paprika-500/20' : 'bg-cream dark:bg-charcoal-950',
                   )}
                 >
                   {food.emoji}
-                  {iWant && (
-                    <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-avocado-500 text-white">
+                  {onPlate && (
+                    <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-paprika-500 text-white ring-2 ring-white dark:ring-charcoal-800">
                       <Check size={13} strokeWidth={3} />
                     </span>
                   )}
@@ -235,16 +251,6 @@ export function FoodsScreen() {
                     {refuses > 0 && <span className="ml-1 text-red-500">· 🚫{refuses}</span>}
                   </p>
                 </div>
-
-                {/* wisher avatars */}
-                {todaysWishers.length > 0 && (
-                  <div className="flex -space-x-2">
-                    {todaysWishers.map((id) => {
-                      const m = memberById.get(id)
-                      return m ? <Avatar key={id} member={m} size={22} ring /> : null
-                    })}
-                  </div>
-                )}
 
                 <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
                   <button
@@ -296,10 +302,101 @@ export function FoodsScreen() {
 
       {/* Add button */}
       <div className="mt-4">
-        <Button fullWidth onClick={() => setEditing(null)}>
+        <Button variant="secondary" fullWidth onClick={() => setEditing(null)}>
           <Plus size={20} /> Add a food
         </Button>
       </div>
+
+      {/* Flying emoji → plate */}
+      <AnimatePresence>
+        {flying.map((f) => (
+          <motion.span
+            key={f.id}
+            className="pointer-events-none fixed left-0 top-0 z-[60] text-3xl"
+            initial={{ x: f.x - 16, y: f.y - 16, scale: 1, opacity: 1 }}
+            animate={{
+              x: (typeof window !== 'undefined' ? window.innerWidth / 2 : 180) - 16,
+              y: (typeof window !== 'undefined' ? window.innerHeight - 150 : 600),
+              scale: 0.5,
+              opacity: 0,
+            }}
+            transition={{ duration: 0.6, ease: [0.4, 0, 0.6, 1] }}
+          >
+            {f.emoji}
+          </motion.span>
+        ))}
+      </AnimatePresence>
+
+      {/* Plate tray */}
+      <AnimatePresence>
+        {plateCount > 0 && (
+          <motion.div
+            className="fixed inset-x-0 bottom-[74px] z-20 px-4"
+            initial={{ y: 90, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 90, opacity: 0 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+          >
+            <div className="mx-auto max-w-md rounded-3xl bg-white p-3 shadow-pop ring-1 ring-charcoal-900/[0.06] dark:bg-charcoal-800 dark:ring-white/[0.08]">
+              <div className="flex items-center gap-3">
+                <div className="flex -space-x-1.5">
+                  <AnimatePresence>
+                    {plateFoods.map((f) => (
+                      <motion.span
+                        key={f.id}
+                        initial={{ scale: 0, y: -6 }}
+                        animate={{ scale: 1, y: 0 }}
+                        exit={{ scale: 0 }}
+                        transition={{ type: 'spring', damping: 14, stiffness: 400 }}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-cream text-lg ring-2 ring-white dark:bg-charcoal-950 dark:ring-charcoal-800"
+                      >
+                        {f.emoji}
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-sm font-extrabold text-charcoal-900 dark:text-cream">
+                    {isComplete ? 'Plate complete 🎉' : 'Building your plate…'}
+                  </p>
+                  <p className="truncate text-xs font-medium text-charcoal-800/55 dark:text-cream/45">
+                    {plateFoods.map((f) => f.name).join(' + ')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPlate({})}
+                  className="rounded-full p-1.5 text-charcoal-800/40 hover:text-red-500 dark:text-cream/40"
+                  aria-label="Clear plate"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button variant="secondary" onClick={putToVote} className="flex-1">
+                  <ListChecks size={17} /> Put to vote
+                </Button>
+                <Button onClick={() => setCookOpen(true)} className="flex-1">
+                  🍽️ Cook this
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {cookOpen && (
+        <MealCostSheet
+          title="What did it cost?"
+          items={plateFoods.map((f) => ({
+            food_id: f.id,
+            label: f.name,
+            suggested: foodAvgCost(data, f.id) ?? f.cost,
+          }))}
+          confirmLabel="Save meal ✅"
+          onClose={() => setCookOpen(false)}
+          onConfirm={cookConfirm}
+        />
+      )}
 
       {editing !== undefined && (
         <FoodEditor
@@ -310,4 +407,11 @@ export function FoodsScreen() {
       )}
     </div>
   )
+}
+
+// Breakfast plate → breakfast slot; otherwise a main meal.
+function plateSlot(plate: Partial<Record<FoodCategory, Food>>): MealSlot {
+  const breakfasty = plate.drink || plate.breakfast
+  const mainy = plate.base || plate.protein || plate.veg
+  return breakfasty && !mainy ? 'breakfast' : 'dinner'
 }
