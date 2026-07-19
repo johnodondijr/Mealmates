@@ -91,6 +91,7 @@ export const TEXTURE_MAP: Record<string, Texture> = {
   food_uji_porridge_: 'saucy',
   food_milk_milo: 'saucy',
   food_cocoa: 'saucy',
+  food_weetabix: 'saucy',
 }
 
 export const SEED_FOODS: Food[] = [
@@ -180,7 +181,9 @@ export const SEED_FOODS: Food[] = [
   food('Chapati', 'breakfast', '🫓', 80, 'Hard', 45, true, 'food_chapati_bf'),
   food('Mandazi', 'breakfast', '🍩', 70, 'Hard', 45),
   food('Pancakes', 'breakfast', '🥞', 80, 'Medium', 25),
-  food('Weetabix', 'breakfast', '🥣', 100, 'Easy', 5),
+  // Weetabix is a milk-based cereal — a *wet* breakfast, grouped with the
+  // drinks so a spin never pairs it with tea/coffee (it stands in for them).
+  food('Weetabix', 'drink', '🥣', 100, 'Easy', 5),
   food('Boiled Eggs', 'breakfast', '🥚', 60, 'Easy', 12),
   food('Arrowroots', 'breakfast', '🥔', 70, 'Medium', 25),
   food('Sweet Potato', 'breakfast', '🍠', 60, 'Medium', 30),

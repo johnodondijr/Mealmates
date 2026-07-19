@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, Link2, Link2Off, ExternalLink } from 'lucide-react'
+import { Loader2, Link2, Link2Off, ExternalLink, Cloud } from 'lucide-react'
 import { Button } from './ui/Button'
 import {
   isSupabaseConfigured,
@@ -7,6 +7,8 @@ import {
   getStoredSupabaseConfig,
   setSupabaseConfig,
   testSupabaseConnection,
+  isLocalOnly,
+  setLocalOnly,
 } from '../data/supabaseClient'
 
 // Repo file with the one-paste setup SQL for a fresh Supabase project.
@@ -20,11 +22,27 @@ export function SyncSettings() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Connected via build-time env vars — nothing to configure here.
-  if (isSupabaseConfigured && supabaseConfigSource === 'env') {
+  // The user chose local-only even though sync is available — offer to turn it
+  // back on.
+  if (isLocalOnly()) {
+    const enableSync = () => {
+      setLocalOnly(false)
+      window.location.reload()
+    }
+    return (
+      <Button fullWidth onClick={enableSync}>
+        <Cloud size={18} /> Turn on sync
+      </Button>
+    )
+  }
+
+  // Sync is built in (baked project) or set via env vars — nothing to type.
+  if (isSupabaseConfigured && (supabaseConfigSource === 'env' || supabaseConfigSource === 'baked')) {
     return (
       <p className="text-xs font-semibold text-charcoal-800/50 dark:text-cream/40">
-        Configured with build-time environment variables.
+        {supabaseConfigSource === 'baked'
+          ? 'Live sync is built in — just share your household code.'
+          : 'Configured with build-time environment variables.'}
       </p>
     )
   }

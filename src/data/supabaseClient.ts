@@ -27,19 +27,47 @@ function readStored(): SupabaseConfig | null {
   return null
 }
 
+// Built-in project so the deployed app is live-sync out of the box — nobody
+// has to paste a URL or key. The anon key is public by design (row-level
+// security guards the data); it always ships to clients regardless. A runtime
+// or env-var config still overrides this for self-hosted builds.
+const BAKED_URL = 'https://eqrywvkofzomcnlajryu.supabase.co'
+const BAKED_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxcnl3dmtvZnpvbWNubGFqcnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NTc5MTQsImV4cCI6MjEwMDAzMzkxNH0.FH_YmCwiL_Q0lfe0qV72i4jQs11_kA7cq6CXS9JQ3Kc'
+
 const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-const stored = typeof localStorage !== 'undefined' ? readStored() : null
-const url = stored?.url ?? envUrl
-const anonKey = stored?.anonKey ?? envKey
+// Explicit "this device only" opt-out — needed because baked creds would
+// otherwise always enable sync.
+const LOCAL_ONLY_KEY = 'mealmates.localOnly'
+function readLocalOnly(): boolean {
+  try {
+    return localStorage.getItem(LOCAL_ONLY_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+export function isLocalOnly(): boolean {
+  return readLocalOnly()
+}
+export function setLocalOnly(on: boolean): void {
+  if (on) localStorage.setItem(LOCAL_ONLY_KEY, '1')
+  else localStorage.removeItem(LOCAL_ONLY_KEY)
+}
 
-export const isSupabaseConfigured = Boolean(url && anonKey)
-export const supabaseConfigSource: 'runtime' | 'env' | 'none' = stored
+const stored = typeof localStorage !== 'undefined' ? readStored() : null
+const url = stored?.url ?? envUrl ?? BAKED_URL
+const anonKey = stored?.anonKey ?? envKey ?? BAKED_ANON_KEY
+
+export const isSupabaseConfigured = !readLocalOnly() && Boolean(url && anonKey)
+export const supabaseConfigSource: 'runtime' | 'env' | 'baked' | 'none' = stored
   ? 'runtime'
   : envUrl && envKey
     ? 'env'
-    : 'none'
+    : BAKED_URL && BAKED_ANON_KEY
+      ? 'baked'
+      : 'none'
 
 // Only create the client when configured, so the local adapter can run with
 // no config at all.

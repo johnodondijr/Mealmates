@@ -4,7 +4,7 @@ import { Loader2, Home, LogIn, Link2Off } from 'lucide-react'
 import { Button } from './ui/Button'
 import { cn } from './../lib/cn'
 import { newId } from '../lib/id'
-import { supabase, setHouseholdId, setSupabaseConfig } from '../data/supabaseClient'
+import { supabase, setHouseholdId, setLocalOnly } from '../data/supabaseClient'
 import { createHousehold, joinHousehold } from '../data/household'
 
 const AVATARS = [
@@ -89,7 +89,7 @@ export function HouseholdGate() {
   }
 
   const useLocalOnly = () => {
-    setSupabaseConfig(null)
+    setLocalOnly(true)
     window.location.reload()
   }
 

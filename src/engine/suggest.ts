@@ -94,6 +94,24 @@ export interface SuggestOptions {
   excludeIds?: string[]
   // Whole-combo signatures to avoid repeating (recent spins on this screen).
   avoidSignatures?: string[]
+  // Foods shown in the last few spins — softly down-weighted so the same
+  // items don't keep reappearing (keeps the reels feeling varied).
+  deprioritizeIds?: string[]
+  // The combo currently on screen. A fresh spin must change at least two of
+  // its slots so consecutive spins never look nearly identical.
+  previous?: { base?: string | null; protein?: string | null; veg?: string | null }
+}
+
+// How many of a combo's slots differ from a previous combo.
+function comboChanges(
+  c: { base?: Food; protein?: Food; veg?: Food },
+  prev: { base?: string | null; protein?: string | null; veg?: string | null },
+): number {
+  let n = 0
+  if ((c.base?.id ?? null) !== (prev.base ?? null)) n++
+  if ((c.protein?.id ?? null) !== (prev.protein ?? null)) n++
+  if ((c.veg?.id ?? null) !== (prev.veg ?? null)) n++
+  return n
 }
 
 // A stable signature for a combo so we can detect repeats.
@@ -192,6 +210,10 @@ function scoreFood(
   // Gentle nudge toward easier meals.
   if (food.effort === 'Easy') score += 0.4
 
+  // Freshness: foods shown in the last few spins get pushed down so the reels
+  // keep rotating through the whole library instead of favouring a handful.
+  if (opts.deprioritizeIds?.includes(food.id)) score -= 3
+
   return { food, score, reasons, refusedBy }
 }
 
@@ -259,7 +281,7 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   // Generate a spread of candidates, then rank by taste + balance + freshness.
   const candidates: ScoredCombo[] = []
   const bySig = new Map<string, ScoredCombo>()
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 32; i++) {
     const c = generateCombo(data, opts, pref, lastEaten)
     const sig = comboSignature(c)
     const { score: moisture, reason } = moistureScore(c)
@@ -276,10 +298,23 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   let pool = candidates.filter((c) => !hardAvoid.has(comboSignature(c)))
   if (pool.length === 0) pool = candidates
 
+  // Require a fresh spin to change at least two slots from what's on screen, so
+  // consecutive spins never look near-identical. Fall back if the library is
+  // too small to offer enough variety.
+  if (opts.previous) {
+    const slotsPresent =
+      (opts.previous.base ? 1 : 0) +
+      (opts.previous.protein ? 1 : 0) +
+      (opts.previous.veg ? 1 : 0)
+    const required = Math.min(2, slotsPresent)
+    const varied = pool.filter((c) => comboChanges(c, opts.previous!) >= required)
+    if (varied.length > 0) pool = varied
+  }
+
   // Weighted pick by quality so good, balanced, fresh combos win more often —
-  // but it stays varied rather than always returning the single top combo.
+  // a flatter base than before spreads picks across more of the library.
   const min = Math.min(...pool.map((c) => c.score))
-  const weights = pool.map((c) => Math.pow(2.2, c.score - min))
+  const weights = pool.map((c) => Math.pow(1.7, c.score - min))
   const total = weights.reduce((a, b) => a + b, 0)
   let r = Math.random() * total
   for (let i = 0; i < pool.length; i++) {

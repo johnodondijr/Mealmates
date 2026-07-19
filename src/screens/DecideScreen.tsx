@@ -53,6 +53,8 @@ export function DecideScreen() {
   const [costOpen, setCostOpen] = useState(false)
   // Signatures of the last few results so a re-spin doesn't repeat them.
   const [recentSigs, setRecentSigs] = useState<string[]>([])
+  // Foods shown in the last couple of spins — down-weighted for variety.
+  const [recentFoodIds, setRecentFoodIds] = useState<string[]>([])
   const [tipDismissed, setTipDismissed] = useState(
     () => localStorage.getItem('mealmates.tip1') === '1',
   )
@@ -95,13 +97,26 @@ export function DecideScreen() {
 
   // Full spin — all reels.
   const roll = () => {
+    const previous = combo
+      ? {
+          base: combo.base?.id ?? null,
+          protein: combo.protein?.id ?? null,
+          veg: combo.veg?.id ?? null,
+        }
+      : undefined
     const next = buildCombo(data, {
       budgetMode,
       presentMemberIds: present,
       slot,
       avoidSignatures: recentSigs,
+      deprioritizeIds: recentFoodIds,
+      previous,
     })
     setRecentSigs((prev) => [comboSignature(next), ...prev].slice(0, 5))
+    const nextFoods = [next.base?.id, next.protein?.id, next.veg?.id].filter(
+      Boolean,
+    ) as string[]
+    setRecentFoodIds((prev) => [...nextFoods, ...prev].slice(0, 6))
     setCombo(next)
     setLogged(false)
     setRevealed(false)

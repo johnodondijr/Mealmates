@@ -14,3 +14,14 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+// Register the service worker so MealMates is installable to the home screen
+// and opens offline. Scoped to the app's base path (works under /Mealmates/).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const base = import.meta.env.BASE_URL
+    navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).catch(() => {
+      /* SW is a progressive enhancement — ignore failures */
+    })
+  })
+}
