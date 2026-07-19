@@ -11,10 +11,20 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onOpenSettings }: AppHeaderProps) {
-  const { data, currentMember, currentMemberId, setCurrentMemberId } = useApp()
+  const {
+    data,
+    currentMember,
+    currentMemberId,
+    setCurrentMemberId,
+    onlineMemberIds,
+    presenceEnabled,
+  } = useApp()
   const { theme, toggle } = useTheme()
   const [open, setOpen] = useState(false)
   const chefId = chefFavoriteId(data)
+  const online = new Set(onlineMemberIds)
+  // Others (not me) currently online — drives the little "live" badge.
+  const othersLive = onlineMemberIds.filter((id) => id !== currentMemberId).length
 
   return (
     <header className="sticky top-0 z-20 bg-cream/85 backdrop-blur-lg dark:bg-charcoal-950/85 safe-top">
@@ -45,11 +55,16 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
           </button>
           <button
             onClick={() => setOpen((o) => !o)}
-            className="ml-0.5 rounded-full ring-2 ring-white transition-transform active:scale-95 dark:ring-charcoal-800"
+            className="relative ml-0.5 rounded-full ring-2 ring-white transition-transform active:scale-95 dark:ring-charcoal-800"
             aria-label="Switch profile"
           >
             {currentMember && (
               <Avatar member={currentMember} size={40} crown={chefId === currentMemberId} />
+            )}
+            {presenceEnabled && othersLive > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-avocado-500 px-1 text-[9px] font-bold text-white ring-2 ring-cream dark:ring-charcoal-950">
+                {othersLive}
+              </span>
             )}
           </button>
         </div>
@@ -66,26 +81,39 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
               className="absolute right-4 z-20 mt-1 w-56 overflow-hidden rounded-2xl bg-white p-1.5 shadow-2xl dark:bg-charcoal-800"
             >
               <p className="px-3 py-2 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
-                Who's tapping?
+                {presenceEnabled ? `Who's tapping? · ${online.size} live` : "Who's tapping?"}
               </p>
-              {data.members.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setCurrentMemberId(m.id)
-                    setOpen(false)
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  <Avatar member={m} size={32} crown={chefId === m.id} />
-                  <span className="flex-1 font-display font-bold text-charcoal-900 dark:text-cream">
-                    {m.name}
-                  </span>
-                  {m.id === currentMemberId && (
-                    <Check size={18} className="text-paprika-500" />
-                  )}
-                </button>
-              ))}
+              {data.members.map((m) => {
+                const isLive = presenceEnabled && online.has(m.id)
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      setCurrentMemberId(m.id)
+                      setOpen(false)
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10"
+                  >
+                    <span className="relative">
+                      <Avatar member={m} size={32} crown={chefId === m.id} />
+                      {isLive && (
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-avocado-500 ring-2 ring-white dark:ring-charcoal-800" />
+                      )}
+                    </span>
+                    <span className="flex-1 font-display font-bold text-charcoal-900 dark:text-cream">
+                      {m.name}
+                    </span>
+                    {isLive && m.id !== currentMemberId && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-avocado-600">
+                        live
+                      </span>
+                    )}
+                    {m.id === currentMemberId && (
+                      <Check size={18} className="text-paprika-500" />
+                    )}
+                  </button>
+                )
+              })}
             </motion.div>
           </>
         )}

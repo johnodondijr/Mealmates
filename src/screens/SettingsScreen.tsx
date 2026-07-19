@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Database, HardDrive, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Copy, Database, HardDrive, LogOut, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import type { Member } from '../types'
 import { Sheet } from '../components/ui/Sheet'
@@ -14,7 +14,27 @@ interface SettingsScreenProps {
 }
 
 export function SettingsScreen({ onClose }: SettingsScreenProps) {
-  const { data, usingSupabase, updateSettings, removeMember } = useApp()
+  const {
+    data,
+    usingSupabase,
+    updateSettings,
+    removeMember,
+    householdId,
+    onlineMemberIds,
+    presenceEnabled,
+    leaveHousehold,
+  } = useApp()
+  const [copied, setCopied] = useState(false)
+  const copyCode = () => {
+    if (!householdId) return
+    navigator.clipboard?.writeText(householdId).then(
+      () => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      },
+      () => {},
+    )
+  }
   const [editing, setEditing] = useState<Member | null | undefined>(undefined)
   const [household, setHousehold] = useState(data.settings.household_name)
   const [budget, setBudget] = useState(String(data.settings.monthly_budget))
@@ -114,6 +134,45 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
               </p>
             </div>
           </div>
+
+          {/* Household code — share it so housemates can join */}
+          {householdId && (
+            <div className="mb-3 rounded-2xl bg-white p-4 shadow-card dark:bg-charcoal-800">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
+                  Household code
+                </p>
+                {presenceEnabled && (
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-avocado-600">
+                    <span className="h-2 w-2 rounded-full bg-avocado-500" />
+                    {onlineMemberIds.length} live now
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={copyCode}
+                className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl bg-cream px-4 py-3 dark:bg-charcoal-950"
+              >
+                <span className="font-display text-2xl font-extrabold tracking-[0.3em] text-charcoal-900 dark:text-cream">
+                  {householdId}
+                </span>
+                <span className="flex items-center gap-1 text-xs font-bold text-paprika-600">
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </span>
+              </button>
+              <p className="mt-2 text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
+                Share this code so housemates can join your household.
+              </p>
+              <button
+                onClick={leaveHousehold}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 py-1.5 text-sm font-bold text-red-500"
+              >
+                <LogOut size={15} /> Leave this household
+              </button>
+            </div>
+          )}
+
           <SyncSettings />
         </section>
 

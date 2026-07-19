@@ -1,19 +1,36 @@
 -- MealMates — full schema (one-paste setup)
 -- Paste this whole file into your Supabase project's SQL editor and run it.
--- It creates every table, enables Realtime, and opens permissive RLS for a
--- single trusted household. Safe to re-run (idempotent).
+-- It creates every table, enables Realtime, and opens permissive RLS.
+-- Safe to re-run (idempotent).
 --
--- This is the consolidation of supabase/migrations/0001–0004. If you prefer,
+-- This is the consolidation of supabase/migrations/0001–0005. If you prefer,
 -- run those migrations in order instead — the end state is identical.
+--
+-- One project can host several isolated households: people join one by its
+-- short code and only see that household's members, meals, votes and spending.
+-- The food *catalog* is shared across households (keeps the pairing engine's
+-- stable ids working); everything else is scoped by household_id.
+
+-- ---------- households ----------
+create table if not exists public.households (
+  id text primary key,                    -- short, shareable join code
+  name text not null default 'Our Household',
+  monthly_budget numeric not null default 30000,
+  budget_mode boolean not null default false,
+  currency text not null default 'KES',
+  created_at timestamptz not null default now()
+);
 
 -- ---------- members ----------
 create table if not exists public.members (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   name text not null,
   emoji text not null default '🙂',
   color text not null default '#C4704F',
   created_at timestamptz not null default now()
 );
+alter table public.members add column if not exists household_id text references public.households(id) on delete cascade;
 
 -- ---------- foods ----------
 create table if not exists public.foods (
@@ -43,6 +60,7 @@ alter table public.foods add column if not exists ingredients jsonb not null def
 -- ---------- food_preferences (member <-> food, love/refuse) ----------
 create table if not exists public.food_preferences (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   member_id text not null references public.members(id) on delete cascade,
   food_id text not null references public.foods(id) on delete cascade,
   preference text not null check (preference in ('love','refuse')),
@@ -52,6 +70,7 @@ create table if not exists public.food_preferences (
 -- ---------- meal_wishes ("I want this today") ----------
 create table if not exists public.meal_wishes (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   member_id text not null references public.members(id) on delete cascade,
   food_id text not null references public.foods(id) on delete cascade,
   wished_on date not null default current_date,
@@ -61,6 +80,7 @@ create table if not exists public.meal_wishes (
 -- ---------- votes ----------
 create table if not exists public.votes (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   title text not null,
   slot text not null check (slot in ('breakfast','lunch','dinner')),
   status text not null default 'open' check (status in ('open','closed')),
@@ -72,6 +92,7 @@ create table if not exists public.votes (
 -- ---------- vote_options ----------
 create table if not exists public.vote_options (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   vote_id text not null references public.votes(id) on delete cascade,
   label text not null,
   base_id text references public.foods(id) on delete set null,
@@ -83,6 +104,7 @@ create table if not exists public.vote_options (
 -- ---------- vote_ballots ----------
 create table if not exists public.vote_ballots (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   vote_id text not null references public.votes(id) on delete cascade,
   option_id text not null references public.vote_options(id) on delete cascade,
   member_id text not null references public.members(id) on delete cascade,
@@ -93,6 +115,7 @@ create table if not exists public.vote_ballots (
 -- ---------- meals_eaten ----------
 create table if not exists public.meals_eaten (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   slot text not null check (slot in ('breakfast','lunch','dinner')),
   label text not null,
   base_id text references public.foods(id) on delete set null,
@@ -110,6 +133,7 @@ alter table public.meals_eaten add column if not exists component_costs jsonb no
 -- ---------- expenses ----------
 create table if not exists public.expenses (
   id text primary key,
+  household_id text references public.households(id) on delete cascade,
   amount numeric not null default 0,
   description text not null,
   category text not null default 'other',
@@ -119,7 +143,8 @@ create table if not exists public.expenses (
   created_at timestamptz not null default now()
 );
 
--- ---------- settings (single row) ----------
+-- ---------- settings (single row — legacy; household settings now live on
+-- the households row. Kept so older single-workspace setups still work.) ------
 create table if not exists public.settings (
   id text primary key default 'settings',
   household_name text not null default 'Our Household',
@@ -127,6 +152,16 @@ create table if not exists public.settings (
   budget_mode boolean not null default false,
   currency text not null default 'KES'
 );
+
+-- ---------- backfill household_id on setups that pre-date v5 ----------
+alter table public.members          add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.food_preferences add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.meal_wishes      add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.votes            add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.vote_options     add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.vote_ballots     add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.meals_eaten      add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.expenses         add column if not exists household_id text references public.households(id) on delete cascade;
 
 -- ---------- indexes ----------
 create index if not exists idx_prefs_member on public.food_preferences(member_id);
@@ -136,14 +171,22 @@ create index if not exists idx_options_vote on public.vote_options(vote_id);
 create index if not exists idx_ballots_vote on public.vote_ballots(vote_id);
 create index if not exists idx_meals_date on public.meals_eaten(eaten_on);
 create index if not exists idx_expenses_date on public.expenses(spent_on);
+create index if not exists idx_members_hh on public.members(household_id);
+create index if not exists idx_prefs_hh on public.food_preferences(household_id);
+create index if not exists idx_wishes_hh on public.meal_wishes(household_id);
+create index if not exists idx_votes_hh on public.votes(household_id);
+create index if not exists idx_options_hh on public.vote_options(household_id);
+create index if not exists idx_ballots_hh on public.vote_ballots(household_id);
+create index if not exists idx_meals_hh on public.meals_eaten(household_id);
+create index if not exists idx_expenses_hh on public.expenses(household_id);
 
 -- ---------- Realtime + permissive RLS ----------
 do $$
 declare t text;
 begin
   foreach t in array array[
-    'members','foods','food_preferences','meal_wishes','votes','vote_options',
-    'vote_ballots','meals_eaten','expenses','settings'
+    'households','members','foods','food_preferences','meal_wishes','votes',
+    'vote_options','vote_ballots','meals_eaten','expenses','settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);

@@ -20,8 +20,15 @@ import type {
   Vote,
   VoteOption,
 } from '../types'
-import { createRepository, usingSupabase, type Repository } from '../data'
-import { getStoredSupabaseConfig, setSupabaseConfig } from '../data/supabaseClient'
+import { createRepository, usingSupabase, needsHousehold, type Repository } from '../data'
+import {
+  getStoredSupabaseConfig,
+  setSupabaseConfig,
+  getHouseholdId,
+  setHouseholdId,
+  supabase,
+} from '../data/supabaseClient'
+import { HouseholdGate } from '../components/HouseholdGate'
 import { newId } from '../lib/id'
 import { todayISO } from '../lib/format'
 
@@ -29,6 +36,12 @@ interface AppContextValue {
   data: AppData
   loading: boolean
   usingSupabase: boolean
+
+  // Household (Supabase mode): the join code and who's currently online.
+  householdId: string | null
+  onlineMemberIds: string[]
+  presenceEnabled: boolean
+  leaveHousehold: () => void
 
   currentMemberId: string
   setCurrentMemberId: (id: string) => void
@@ -73,7 +86,17 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 const CURRENT_MEMBER_KEY = 'mealmates.currentMember'
 
+// Gate wrapper: when Supabase is configured but this device hasn't joined a
+// household yet, show the create/join screen instead of the app. Kept in a
+// thin outer component so the real provider's hooks always run in the same
+// order (this one only ever calls useState).
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [gate] = useState(() => needsHousehold())
+  if (gate) return <HouseholdGate />
+  return <AppProviderInner>{children}</AppProviderInner>
+}
+
+function AppProviderInner({ children }: { children: ReactNode }) {
   const repoRef = useRef<Repository>()
   if (!repoRef.current) repoRef.current = createRepository()
   const repo = repoRef.current
@@ -124,6 +147,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [data, currentMemberId, setCurrentMemberId])
 
+  // Live presence: broadcast that this member is online and track who else is,
+  // via a Supabase Realtime presence channel keyed by household.
+  const householdId = getHouseholdId()
+  const presenceEnabled = usingSupabase && !!householdId
+  const [onlineMemberIds, setOnlineMemberIds] = useState<string[]>([])
+  useEffect(() => {
+    if (!presenceEnabled || !supabase || !householdId || !currentMemberId) {
+      setOnlineMemberIds([])
+      return
+    }
+    const channel = supabase.channel(`presence-${householdId}`, {
+      config: { presence: { key: currentMemberId } },
+    })
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        setOnlineMemberIds(Object.keys(channel.presenceState()))
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          channel.track({ member_id: currentMemberId, at: Date.now() })
+        }
+      })
+    return () => {
+      supabase!.removeChannel(channel)
+    }
+  }, [presenceEnabled, householdId, currentMemberId])
+
+  const leaveHousehold = useCallback(() => {
+    setHouseholdId(null)
+    localStorage.removeItem(CURRENT_MEMBER_KEY)
+    window.location.reload()
+  }, [])
+
   // Every mutation optimistically reloads afterward so local state stays in
   // sync even on the same tab (BroadcastChannel doesn't fire on the sender).
   const withReload = useCallback(
@@ -143,6 +199,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       data,
       loading: false,
       usingSupabase,
+      householdId,
+      onlineMemberIds,
+      presenceEnabled,
+      leaveHousehold,
       currentMemberId,
       setCurrentMemberId,
       currentMember,
@@ -185,7 +245,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       updateSettings: withReload((s: Settings) => repo.updateSettings(s)),
     }
-  }, [data, currentMemberId, repo, setCurrentMemberId, withReload])
+  }, [
+    data,
+    currentMemberId,
+    repo,
+    setCurrentMemberId,
+    withReload,
+    householdId,
+    onlineMemberIds,
+    presenceEnabled,
+    leaveHousehold,
+  ])
 
   if (!value) {
     return <BootScreen />

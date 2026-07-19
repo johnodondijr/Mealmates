@@ -153,6 +153,18 @@ export interface Settings {
   currency: string
 }
 
+// A shared household (Supabase mode). Its `id` doubles as the short join code
+// housemates enter to join. Settings fields live here so each household has
+// its own name/budget/currency.
+export interface Household {
+  id: string
+  name: string
+  monthly_budget: number
+  budget_mode: boolean
+  currency: string
+  created_at: string
+}
+
 export interface AppData {
   members: Member[]
   foods: Food[]

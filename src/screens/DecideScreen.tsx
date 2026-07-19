@@ -38,7 +38,9 @@ function comboPrep(c: ScoredCombo): number {
 }
 
 export function DecideScreen() {
-  const { data, currentMemberId, currentMember, logMeal, updateSettings } = useApp()
+  const { data, currentMemberId, currentMember, logMeal, updateSettings, onlineMemberIds, presenceEnabled } =
+    useApp()
+  const onlineSet = new Set(onlineMemberIds)
   const budgetMode = data.settings.budget_mode
 
   const [slot, setSlot] = useState<MealSlot>('dinner')
@@ -244,6 +246,9 @@ export function DecideScreen() {
                       <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-avocado-500 text-white ring-2 ring-cream dark:ring-charcoal-950">
                         <Check size={12} strokeWidth={3} />
                       </span>
+                    )}
+                    {presenceEnabled && onlineSet.has(m.id) && (
+                      <span className="absolute -left-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-avocado-500 ring-2 ring-cream dark:ring-charcoal-950" />
                     )}
                   </span>
                   <span

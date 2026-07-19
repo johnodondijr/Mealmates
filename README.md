@@ -96,12 +96,23 @@ npm run preview   # preview the production build
 
    then restart `npm run dev`.
 
-On first connect the empty database is seeded automatically, and
-**Settings → Sync** shows **"Supabase — live sync on"**. Meals, votes and
-spending then update live across every device in the house.
+After connecting you'll **create a household** (which gives you a short
+join code) or **join** one with a code. One Supabase project can host
+several isolated households — each only sees its own members, meals, votes,
+wishes and spending. Share your code (**Settings → Sync**) so housemates
+can join, and you'll see who's **live** in real time (a green dot on their
+avatar). The food catalog is shared across households; everything else is
+scoped per household.
+
+> Already ran an older `schema.sql`? Re-run the updated one (it's
+> idempotent) or apply `supabase/migrations/0005_households.sql` to add the
+> households table and `household_id` columns.
 
 > Using the Supabase CLI instead? `supabase db push` will apply the
 > migrations in `supabase/migrations/`.
+
+> Note: switching a device from local-only to a synced household starts
+> fresh in the cloud — existing on-device history isn't migrated up.
 
 ## ▲ Deploying to Vercel
 

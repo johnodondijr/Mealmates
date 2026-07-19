@@ -4,6 +4,7 @@ import type {
   AppData,
   Expense,
   Food,
+  Household,
   MealEaten,
   Member,
   Preference,
@@ -12,21 +13,27 @@ import type {
   VoteBallot,
   VoteOption,
 } from '../types'
-import { buildSeedData } from './seed'
+import { SEED_FOODS } from './seed'
 import { newId } from '../lib/id'
 
-// Supabase adapter. Implements the same Repository contract as the local one,
-// backed by the tables defined in supabase/migrations. Realtime subscribes to
-// changes on the vote-related tables (and everything else) so votes update
-// live across devices.
-//
-// Table columns map 1:1 to the domain types, so most methods are thin wrappers
-// around `upsert` / `delete`.
+// Supabase adapter, scoped to one household. The food catalog is shared across
+// the whole project (stable ids keep the pairing engine working); everything
+// else is filtered by household_id so households stay isolated. Realtime
+// subscribes to all changes so votes/meals update live across devices.
 export class SupabaseRepository implements Repository {
-  constructor(private db: SupabaseClient) {}
+  constructor(
+    private db: SupabaseClient,
+    private householdId: string,
+  ) {}
+
+  private stamp<T extends object>(row: T): T & { household_id: string } {
+    return { ...row, household_id: this.householdId }
+  }
 
   async loadAll(): Promise<AppData> {
+    const hh = this.householdId
     const [
+      household,
       members,
       foods,
       preferences,
@@ -36,26 +43,32 @@ export class SupabaseRepository implements Repository {
       ballots,
       meals,
       expenses,
-      settingsRow,
     ] = await Promise.all([
-      this.db.from('members').select('*').order('created_at'),
+      this.db.from('households').select('*').eq('id', hh).maybeSingle(),
+      this.db.from('members').select('*').eq('household_id', hh).order('created_at'),
       this.db.from('foods').select('*').order('created_at'),
-      this.db.from('food_preferences').select('*'),
-      this.db.from('meal_wishes').select('*'),
-      this.db.from('votes').select('*').order('created_at'),
-      this.db.from('vote_options').select('*'),
-      this.db.from('vote_ballots').select('*'),
-      this.db.from('meals_eaten').select('*'),
-      this.db.from('expenses').select('*'),
-      this.db.from('settings').select('*').limit(1).maybeSingle(),
+      this.db.from('food_preferences').select('*').eq('household_id', hh),
+      this.db.from('meal_wishes').select('*').eq('household_id', hh),
+      this.db.from('votes').select('*').eq('household_id', hh).order('created_at'),
+      this.db.from('vote_options').select('*').eq('household_id', hh),
+      this.db.from('vote_ballots').select('*').eq('household_id', hh),
+      this.db.from('meals_eaten').select('*').eq('household_id', hh),
+      this.db.from('expenses').select('*').eq('household_id', hh),
     ])
 
-    const seed = buildSeedData()
-
-    // First run against an empty database: seed it once.
-    if ((members.data?.length ?? 0) === 0) {
-      await this.seed()
+    // The shared catalog is seeded once per project; be defensive on an empty DB.
+    if ((foods.data?.length ?? 0) === 0) {
+      await this.db.from('foods').upsert(SEED_FOODS)
       return this.loadAll()
+    }
+
+    const h = household.data as Household | null
+    const settings: Settings = {
+      id: hh,
+      household_name: h?.name ?? 'Our Household',
+      monthly_budget: h?.monthly_budget ?? 30000,
+      budget_mode: h?.budget_mode ?? false,
+      currency: h?.currency ?? 'KES',
     }
 
     return {
@@ -68,23 +81,13 @@ export class SupabaseRepository implements Repository {
       ballots: (ballots.data as VoteBallot[]) ?? [],
       meals: (meals.data as MealEaten[]) ?? [],
       expenses: (expenses.data as Expense[]) ?? [],
-      settings: (settingsRow.data as Settings) ?? seed.settings,
+      settings,
     }
-  }
-
-  private async seed(): Promise<void> {
-    const seed = buildSeedData()
-    await this.db.from('members').upsert(seed.members)
-    await this.db.from('foods').upsert(seed.foods)
-    await this.db.from('food_preferences').upsert(seed.preferences)
-    await this.db.from('meals_eaten').upsert(seed.meals)
-    await this.db.from('expenses').upsert(seed.expenses)
-    await this.db.from('settings').upsert(seed.settings)
   }
 
   subscribe(onChange: () => void): () => void {
     const channel = this.db
-      .channel('mealmates-realtime')
+      .channel(`mealmates-${this.householdId}`)
       .on('postgres_changes', { event: '*', schema: 'public' }, () => onChange())
       .subscribe()
     return () => {
@@ -93,12 +96,13 @@ export class SupabaseRepository implements Repository {
   }
 
   async upsertMember(member: Member): Promise<void> {
-    await this.db.from('members').upsert(member)
+    await this.db.from('members').upsert(this.stamp(member))
   }
   async removeMember(id: string): Promise<void> {
-    await this.db.from('members').delete().eq('id', id)
+    await this.db.from('members').delete().eq('id', id).eq('household_id', this.householdId)
   }
 
+  // Foods are the shared catalog — no household stamp.
   async upsertFood(food: Food): Promise<void> {
     await this.db.from('foods').upsert(food)
   }
@@ -117,12 +121,14 @@ export class SupabaseRepository implements Repository {
       .eq('member_id', memberId)
       .eq('food_id', foodId)
     if (pref) {
-      await this.db.from('food_preferences').insert({
-        id: newId('pref'),
-        member_id: memberId,
-        food_id: foodId,
-        preference: pref,
-      })
+      await this.db.from('food_preferences').insert(
+        this.stamp({
+          id: newId('pref'),
+          member_id: memberId,
+          food_id: foodId,
+          preference: pref,
+        }),
+      )
     }
   }
 
@@ -139,22 +145,28 @@ export class SupabaseRepository implements Repository {
       .eq('food_id', foodId)
       .eq('wished_on', wishedOn)
     if (on) {
-      await this.db.from('meal_wishes').insert({
-        id: newId('wish'),
-        member_id: memberId,
-        food_id: foodId,
-        wished_on: wishedOn,
-      })
+      await this.db.from('meal_wishes').insert(
+        this.stamp({
+          id: newId('wish'),
+          member_id: memberId,
+          food_id: foodId,
+          wished_on: wishedOn,
+        }),
+      )
     }
   }
 
   async clearWishes(wishedOn: string): Promise<void> {
-    await this.db.from('meal_wishes').delete().eq('wished_on', wishedOn)
+    await this.db
+      .from('meal_wishes')
+      .delete()
+      .eq('wished_on', wishedOn)
+      .eq('household_id', this.householdId)
   }
 
   async createVote(vote: Vote, options: VoteOption[]): Promise<void> {
-    await this.db.from('votes').insert(vote)
-    await this.db.from('vote_options').insert(options)
+    await this.db.from('votes').insert(this.stamp(vote))
+    await this.db.from('vote_options').insert(options.map((o) => this.stamp(o)))
   }
 
   async castBallot(ballot: VoteBallot): Promise<void> {
@@ -163,7 +175,7 @@ export class SupabaseRepository implements Repository {
       .delete()
       .eq('vote_id', ballot.vote_id)
       .eq('member_id', ballot.member_id)
-    await this.db.from('vote_ballots').insert(ballot)
+    await this.db.from('vote_ballots').insert(this.stamp(ballot))
   }
 
   async closeVote(voteId: string, winnerOptionId: string | null): Promise<void> {
@@ -171,26 +183,40 @@ export class SupabaseRepository implements Repository {
       .from('votes')
       .update({ status: 'closed', winner_option_id: winnerOptionId })
       .eq('id', voteId)
+      .eq('household_id', this.householdId)
   }
 
   async logMeal(meal: MealEaten): Promise<void> {
-    await this.db.from('meals_eaten').insert(meal)
+    await this.db.from('meals_eaten').insert(this.stamp(meal))
   }
   async updateMeal(meal: MealEaten): Promise<void> {
-    await this.db.from('meals_eaten').update(meal).eq('id', meal.id)
+    await this.db
+      .from('meals_eaten')
+      .update(this.stamp(meal))
+      .eq('id', meal.id)
+      .eq('household_id', this.householdId)
   }
   async removeMeal(id: string): Promise<void> {
-    await this.db.from('meals_eaten').delete().eq('id', id)
+    await this.db.from('meals_eaten').delete().eq('id', id).eq('household_id', this.householdId)
   }
 
   async addExpense(expense: Expense): Promise<void> {
-    await this.db.from('expenses').insert(expense)
+    await this.db.from('expenses').insert(this.stamp(expense))
   }
   async removeExpense(id: string): Promise<void> {
-    await this.db.from('expenses').delete().eq('id', id)
+    await this.db.from('expenses').delete().eq('id', id).eq('household_id', this.householdId)
   }
 
+  // Household settings live on the households row.
   async updateSettings(settings: Settings): Promise<void> {
-    await this.db.from('settings').upsert(settings)
+    await this.db
+      .from('households')
+      .update({
+        name: settings.household_name,
+        monthly_budget: settings.monthly_budget,
+        budget_mode: settings.budget_mode,
+        currency: settings.currency,
+      })
+      .eq('id', this.householdId)
   }
 }

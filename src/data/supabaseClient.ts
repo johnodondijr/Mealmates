@@ -60,6 +60,23 @@ export function getStoredSupabaseConfig(): SupabaseConfig | null {
   return readStored()
 }
 
+// The household this device is currently in (Supabase mode). Null until the
+// user creates or joins one via the household gate.
+const HH_KEY = 'mealmates.household'
+
+export function getHouseholdId(): string | null {
+  try {
+    return localStorage.getItem(HH_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setHouseholdId(id: string | null): void {
+  if (id) localStorage.setItem(HH_KEY, id)
+  else localStorage.removeItem(HH_KEY)
+}
+
 // Validate a URL + key by making one lightweight request. Returns a friendly
 // error string on failure, or null on success. Times out fast so a wrong URL
 // never leaves the UI hanging.
