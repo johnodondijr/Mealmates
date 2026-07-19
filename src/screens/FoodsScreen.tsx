@@ -266,10 +266,10 @@ export function FoodsScreen() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
-                      {food.name}
-                    </p>
+                  <p className="truncate font-display font-bold text-charcoal-900 dark:text-cream">
+                    {food.name}
+                  </p>
+                  <p className="flex items-center gap-1.5 truncate text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
                     {food.available === false ? (
                       <span className="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-red-600 dark:bg-red-500/20 dark:text-red-300">
                         Out of stock
@@ -281,11 +281,11 @@ export function FoodsScreen() {
                         </span>
                       )
                     )}
-                  </div>
-                  <p className="truncate text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
-                    {avg ? `~${formatKES(avg)} avg` : formatKES(food.cost)} · {food.effort}
-                    {loves > 0 && <span className="ml-1">· ❤️{loves}</span>}
-                    {refuses > 0 && <span className="ml-1 text-red-500">· 🚫{refuses}</span>}
+                    <span className="truncate">
+                      {avg ? `~${formatKES(avg)} avg` : formatKES(food.cost)} · {food.effort}
+                      {loves > 0 && <span className="ml-1">· ❤️{loves}</span>}
+                      {refuses > 0 && <span className="ml-1 text-red-500">· 🚫{refuses}</span>}
+                    </span>
                   </p>
                 </div>
 
