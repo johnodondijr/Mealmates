@@ -55,6 +55,7 @@ export function FoodsScreen() {
   const { data, currentMemberId, setPreference, createVote, logMeal } = useApp()
   const { setTab } = useNav()
   const reduce = useReducedMotion()
+  const [mode, setMode] = useState<'build' | 'library'>('build')
   const [cat, setCat] = useState<FoodCategory>('base')
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Food | null | undefined>(undefined)
@@ -191,8 +192,35 @@ export function FoodsScreen() {
     <div className={cn('px-4 pb-4', plateCount > 0 && 'pb-64')}>
       <ScreenHeader
         title="Foods"
-        subtitle="Build a plate yourself — then eat it or put it to a vote."
+        subtitle={
+          mode === 'build'
+            ? 'Tap foods to build a plate, then eat it or put it to a vote.'
+            : 'Browse, favourite, and manage your food list.'
+        }
       />
+
+      {/* Mode toggle — building a meal vs. managing the library */}
+      <div className="mt-3 flex gap-1 rounded-2xl bg-charcoal-900/[0.05] p-1 dark:bg-white/[0.06]">
+        {(
+          [
+            { id: 'build', label: '🍽️ Build a plate' },
+            { id: 'library', label: '📋 Food library' },
+          ] as const
+        ).map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setMode(m.id)}
+            className={cn(
+              'flex-1 rounded-xl py-2 font-display text-sm font-bold transition-colors',
+              mode === m.id
+                ? 'bg-white text-charcoal-900 shadow-card dark:bg-charcoal-800 dark:text-cream'
+                : 'text-charcoal-800/55 dark:text-cream/50',
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
 
       {/* Search */}
       <div className="mt-4 flex items-center gap-2 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-charcoal-900/[0.05] dark:bg-charcoal-800 dark:ring-white/[0.06]">
@@ -241,11 +269,11 @@ export function FoodsScreen() {
               transition={{ delay: Math.min(i * 0.02, 0.2) }}
             >
               <div
-                onClick={(e) => togglePlate(food, e)}
+                onClick={mode === 'build' ? (e) => togglePlate(food, e) : () => setEditing(food)}
                 className={cn(
                   'flex cursor-pointer items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 transition-all active:scale-[0.99] dark:bg-charcoal-800/70',
                   food.available === false && 'opacity-55',
-                  onPlate
+                  onPlate && mode === 'build'
                     ? 'ring-2 ring-paprika-400'
                     : refuses > 0
                       ? 'ring-red-300/50 dark:ring-red-500/25'
@@ -255,11 +283,13 @@ export function FoodsScreen() {
                 <div
                   className={cn(
                     'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-2xl',
-                    onPlate ? 'bg-paprika-100 dark:bg-paprika-500/20' : 'bg-cream dark:bg-charcoal-950',
+                    onPlate && mode === 'build'
+                      ? 'bg-paprika-100 dark:bg-paprika-500/20'
+                      : 'bg-cream dark:bg-charcoal-950',
                   )}
                 >
                   {food.emoji}
-                  {onPlate && (
+                  {onPlate && mode === 'build' && (
                     <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-paprika-500 text-white ring-2 ring-white dark:ring-charcoal-800">
                       <Check size={13} strokeWidth={3} />
                     </span>
@@ -289,39 +319,53 @@ export function FoodsScreen() {
                   </p>
                 </div>
 
-                <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => togglePref(food, 'love')}
+                {mode === 'library' ? (
+                  <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => togglePref(food, 'love')}
+                      className={cn(
+                        'rounded-full p-2 transition-colors',
+                        mine === 'love'
+                          ? 'bg-paprika-100 text-paprika-600 dark:bg-paprika-500/20'
+                          : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
+                      )}
+                      aria-label="Love"
+                    >
+                      <Heart size={19} fill={mine === 'love' ? 'currentColor' : 'none'} />
+                    </button>
+                    <button
+                      onClick={() => togglePref(food, 'refuse')}
+                      className={cn(
+                        'rounded-full p-2 transition-colors',
+                        mine === 'refuse'
+                          ? 'bg-red-100 text-red-600 dark:bg-red-500/20'
+                          : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
+                      )}
+                      aria-label="Refuse"
+                    >
+                      <Ban size={19} />
+                    </button>
+                    <button
+                      onClick={() => setEditing(food)}
+                      className="rounded-full p-2 text-charcoal-800/40 hover:bg-black/5 dark:text-cream/40"
+                      aria-label="Edit"
+                    >
+                      <Pencil size={17} />
+                    </button>
+                  </div>
+                ) : (
+                  <span
                     className={cn(
-                      'rounded-full p-2 transition-colors',
-                      mine === 'love'
-                        ? 'bg-paprika-100 text-paprika-600 dark:bg-paprika-500/20'
-                        : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors',
+                      onPlate
+                        ? 'bg-paprika-500 text-white'
+                        : 'bg-charcoal-900/[0.05] text-charcoal-800/40 dark:bg-white/[0.06] dark:text-cream/40',
                     )}
-                    aria-label="Love"
+                    aria-hidden
                   >
-                    <Heart size={19} fill={mine === 'love' ? 'currentColor' : 'none'} />
-                  </button>
-                  <button
-                    onClick={() => togglePref(food, 'refuse')}
-                    className={cn(
-                      'rounded-full p-2 transition-colors',
-                      mine === 'refuse'
-                        ? 'bg-red-100 text-red-600 dark:bg-red-500/20'
-                        : 'text-charcoal-800/30 hover:bg-black/5 dark:text-cream/30',
-                    )}
-                    aria-label="Refuse"
-                  >
-                    <Ban size={19} />
-                  </button>
-                  <button
-                    onClick={() => setEditing(food)}
-                    className="rounded-full p-2 text-charcoal-800/40 hover:bg-black/5 dark:text-cream/40"
-                    aria-label="Edit"
-                  >
-                    <Pencil size={17} />
-                  </button>
-                </div>
+                    {onPlate ? <Check size={17} strokeWidth={3} /> : <Plus size={17} />}
+                  </span>
+                )}
               </div>
             </motion.div>
           )
@@ -337,12 +381,14 @@ export function FoodsScreen() {
         )}
       </div>
 
-      {/* Add button */}
-      <div className="mt-4">
-        <Button variant="secondary" fullWidth onClick={() => setEditing(null)}>
-          <Plus size={20} /> Add a food
-        </Button>
-      </div>
+      {/* Add button — a library (manage) action */}
+      {mode === 'library' && (
+        <div className="mt-4">
+          <Button variant="secondary" fullWidth onClick={() => setEditing(null)}>
+            <Plus size={20} /> Add a food
+          </Button>
+        </div>
+      )}
 
       {/* Flying emoji → plate */}
       <AnimatePresence>

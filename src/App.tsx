@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AppHeader } from './components/AppHeader'
 import { BottomNav, type Tab } from './components/BottomNav'
@@ -8,7 +8,9 @@ import { FoodsScreen } from './screens/FoodsScreen'
 import { MoneyScreen } from './screens/MoneyScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { Onboarding } from './components/Onboarding'
 import { NavProvider } from './store/NavContext'
+import { useApp } from './store/AppContext'
 
 const SCREENS: Record<Tab, () => JSX.Element> = {
   decide: DecideScreen,
@@ -23,6 +25,24 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const reduce = useReducedMotion()
   const Screen = SCREENS[tab]
+
+  const { data } = useApp()
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  useEffect(() => {
+    if (localStorage.getItem('mealmates.onboarded') === '1') return
+    // Existing households (already customised / have history) shouldn't be
+    // shown the first-run flow — quietly mark them as onboarded.
+    const looksUsed =
+      data.members.length > 1 ||
+      data.meals.length > 0 ||
+      data.expenses.length > 0 ||
+      data.settings.household_name !== 'My Household'
+    if (looksUsed) {
+      localStorage.setItem('mealmates.onboarded', '1')
+    } else {
+      setShowOnboarding(true)
+    }
+  }, [data])
 
   return (
     <NavProvider value={{ tab, setTab }}>
@@ -49,6 +69,10 @@ export default function App() {
 
       <AnimatePresence>
         {settingsOpen && <SettingsScreen onClose={() => setSettingsOpen(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
       </AnimatePresence>
     </div>
     </NavProvider>

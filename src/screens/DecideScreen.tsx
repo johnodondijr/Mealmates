@@ -190,8 +190,8 @@ export function DecideScreen() {
         <div className="flex items-start gap-2.5 rounded-2xl bg-mango-50 p-3 ring-1 ring-mango-200 dark:bg-mango-500/10 dark:ring-mango-500/25">
           <span className="text-lg leading-none">👋</span>
           <p className="flex-1 text-sm font-medium leading-snug text-charcoal-800/80 dark:text-cream/75">
-            Welcome! You're set up as <b>{currentMember?.name}</b>. Tap the ⚙️ up
-            top to rename yourself, add housemates, or set a budget.
+            Two ways to decide: <b>spin</b> for a smart, balanced pick here — or head to{' '}
+            <b>Foods</b> to build a plate yourself and put it to a vote.
           </p>
           <button
             onClick={dismissTip}

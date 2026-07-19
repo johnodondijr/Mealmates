@@ -21,6 +21,7 @@ import type {
   VoteOption,
 } from '../types'
 import { createRepository, usingSupabase, type Repository } from '../data'
+import { getStoredSupabaseConfig, setSupabaseConfig } from '../data/supabaseClient'
 import { newId } from '../lib/id'
 import { todayISO } from '../lib/format'
 
@@ -83,8 +84,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const reload = useCallback(async () => {
-    const fresh = await repo.loadAll()
-    setData(fresh)
+    try {
+      const fresh = await repo.loadAll()
+      setData(fresh)
+    } catch (e) {
+      console.error('MealMates: failed to load data', e)
+      // Safety net: if a runtime Supabase connection is broken, drop it and
+      // reload once so the app falls back to local storage instead of getting
+      // stuck on the boot screen. Guarded so it can't loop.
+      if (
+        usingSupabase &&
+        getStoredSupabaseConfig() &&
+        !sessionStorage.getItem('mm.supabaseFallback')
+      ) {
+        sessionStorage.setItem('mm.supabaseFallback', '1')
+        setSupabaseConfig(null)
+        window.location.reload()
+      }
+    }
   }, [repo])
 
   useEffect(() => {

@@ -72,23 +72,36 @@ npm run preview   # preview the production build
 ## 🗄️ Enabling Supabase (optional — for live sync across devices)
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** and run the migration:
-   `supabase/migrations/0001_init.sql`
-   (This creates every table, adds them to the `supabase_realtime`
-   publication, and sets permissive RLS for a single trusted household.)
-3. Copy `.env.example` to `.env` and fill in your project's values
-   (Supabase dashboard → **Settings → API**):
+2. Open **SQL Editor** and run **`supabase/schema.sql`** (the whole file).
+   This creates every table, adds them to the `supabase_realtime`
+   publication, and sets permissive RLS for a single trusted household.
+   (Prefer migrations? Run `supabase/migrations/0001`–`0004` in order — the
+   end state is identical.)
+3. Connect the app to your project — pick **one**:
+
+   **A. In-app (no rebuild — works on the live GitHub Pages site):**
+   open **⚙️ Settings → Sync across devices**, paste your project **URL**
+   and **anon public key** (Supabase dashboard → **Settings → API**), and
+   tap **Connect & sync**. The config is stored on the device and the app
+   reloads against Supabase. Tap **Disconnect** anytime to go back to
+   local-only.
+
+   **B. Build-time env vars (for self-hosted builds):** copy `.env.example`
+   to `.env` and fill in:
 
    ```
    VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
    VITE_SUPABASE_ANON_KEY=your-anon-key
    ```
 
-4. Restart `npm run dev`. On first connect the empty database is seeded
-   automatically. Settings → Data will show **"Supabase (live sync)"**.
+   then restart `npm run dev`.
 
-> Using the Supabase CLI instead? `supabase db push` will apply the migration
-> in `supabase/migrations/`.
+On first connect the empty database is seeded automatically, and
+**Settings → Sync** shows **"Supabase — live sync on"**. Meals, votes and
+spending then update live across every device in the house.
+
+> Using the Supabase CLI instead? `supabase db push` will apply the
+> migrations in `supabase/migrations/`.
 
 ## ▲ Deploying to Vercel
 

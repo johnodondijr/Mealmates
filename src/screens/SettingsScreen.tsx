@@ -6,6 +6,7 @@ import { Sheet } from '../components/ui/Sheet'
 import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { MemberEditor } from '../components/MemberEditor'
+import { SyncSettings } from '../components/SyncSettings'
 import { newId } from '../lib/id'
 
 interface SettingsScreenProps {
@@ -93,10 +94,10 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
           </div>
         </section>
 
-        {/* Data source */}
+        {/* Data source + live sync */}
         <section>
-          <SectionTitle>Data</SectionTitle>
-          <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card dark:bg-charcoal-800">
+          <SectionTitle>Sync across devices</SectionTitle>
+          <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card dark:bg-charcoal-800">
             {usingSupabase ? (
               <Database size={20} className="text-avocado-600" />
             ) : (
@@ -104,15 +105,16 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
             )}
             <div className="flex-1">
               <p className="font-display font-bold text-charcoal-900 dark:text-cream">
-                {usingSupabase ? 'Supabase (live sync)' : 'Local device storage'}
+                {usingSupabase ? 'Supabase — live sync on' : 'This device only'}
               </p>
               <p className="text-xs font-semibold text-charcoal-800/50 dark:text-cream/40">
                 {usingSupabase
-                  ? 'Realtime sync across devices is on.'
-                  : 'Add Supabase env vars to sync across devices.'}
+                  ? 'Meals, votes and spending sync live across everyone in the house.'
+                  : 'Your data lives on this device. Connect Supabase to share it live.'}
               </p>
             </div>
           </div>
+          <SyncSettings />
         </section>
 
         <p className="pt-2 text-center text-xs font-semibold text-charcoal-800/40 dark:text-cream/40">
