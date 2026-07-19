@@ -151,6 +151,9 @@ export interface Settings {
   monthly_budget: number // KES
   budget_mode: boolean
   currency: string
+  // The member who created the household (the admin who approves joins).
+  // Undefined in local (single-device) mode.
+  owner_member_id?: string | null
 }
 
 // A shared household (Supabase mode). Its `id` doubles as the short join code
@@ -162,6 +165,23 @@ export interface Household {
   monthly_budget: number
   budget_mode: boolean
   currency: string
+  owner_member_id: string | null
+  created_at: string
+}
+
+// A pending request to join a household. The admin approves or denies it;
+// on approval a member is created and its id written back to member_id so the
+// requester's device can adopt it.
+export type JoinRequestStatus = 'pending' | 'approved' | 'denied'
+
+export interface JoinRequest {
+  id: string
+  household_id: string
+  name: string
+  emoji: string
+  color: string
+  status: JoinRequestStatus
+  member_id: string | null
   created_at: string
 }
 

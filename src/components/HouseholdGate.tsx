@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Loader2, Home, LogIn, Link2Off } from 'lucide-react'
+import { Loader2, Home, LogIn, Link2Off, Clock, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { cn } from './../lib/cn'
 import { newId } from '../lib/id'
 import { supabase, setHouseholdId, setLocalOnly } from '../data/supabaseClient'
-import { createHousehold, joinHousehold } from '../data/household'
+import { createHousehold, requestToJoin, getJoinRequest } from '../data/household'
 
 const AVATARS = [
   '🙂', '🦁', '🌸', '🚀', '🦋', '🐯', '🦊', '🐼', '🦉', '🐙',
@@ -16,6 +16,20 @@ const COLORS = [
 ]
 
 const CURRENT_MEMBER_KEY = 'mealmates.currentMember'
+const PENDING_KEY = 'mealmates.pendingRequest'
+
+interface Pending {
+  requestId: string
+  householdName: string
+}
+function readPending(): Pending | null {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY)
+    return raw ? (JSON.parse(raw) as Pending) : null
+  } catch {
+    return null
+  }
+}
 
 // Prefill the person's profile from any local (device-only) data they had
 // before connecting, so switching to sync feels continuous.
@@ -42,14 +56,42 @@ export function HouseholdGate() {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState<Pending | null>(() => readPending())
 
   const member = () => ({ id: newId('member'), name: name.trim(), emoji, color })
 
   const finish = (householdId: string, memberId: string) => {
     setHouseholdId(householdId)
     localStorage.setItem(CURRENT_MEMBER_KEY, memberId)
+    localStorage.removeItem(PENDING_KEY)
     window.location.reload()
   }
+
+  // While a join request is pending, poll it until the admin approves or denies.
+  useEffect(() => {
+    if (!pending || !supabase) return
+    let active = true
+    const tick = async () => {
+      const req = await getJoinRequest(supabase!, pending.requestId)
+      if (!active) return
+      if (!req || req.status === 'denied') {
+        localStorage.removeItem(PENDING_KEY)
+        setPending(null)
+        setBusy(false)
+        setError(
+          req ? 'Your request was declined.' : 'That request is no longer available.',
+        )
+      } else if (req.status === 'approved' && req.member_id) {
+        finish(req.household_id, req.member_id)
+      }
+    }
+    tick()
+    const iv = setInterval(tick, 3000)
+    return () => {
+      active = false
+      clearInterval(iv)
+    }
+  }, [pending])
 
   const submit = async () => {
     if (!supabase) return
@@ -74,13 +116,15 @@ export function HouseholdGate() {
           setBusy(false)
           return
         }
-        const res = await joinHousehold(supabase, code, member())
+        const res = await requestToJoin(supabase, code, member())
         if (!res) {
           setError("No household with that code — double-check it with whoever set it up.")
           setBusy(false)
           return
         }
-        finish(res.household.id, res.memberId)
+        const p = { requestId: res.request.id, householdName: res.householdName }
+        localStorage.setItem(PENDING_KEY, JSON.stringify(p))
+        setPending(p)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong — try again.')
@@ -88,9 +132,49 @@ export function HouseholdGate() {
     }
   }
 
+  const cancelPending = () => {
+    localStorage.removeItem(PENDING_KEY)
+    setPending(null)
+    setBusy(false)
+    setError(null)
+  }
+
   const useLocalOnly = () => {
     setLocalOnly(true)
     window.location.reload()
+  }
+
+  if (pending) {
+    return (
+      <motion.div
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-cream px-6 dark:bg-charcoal-950"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <div className="w-full max-w-md text-center">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-mango-400 text-5xl shadow-pop">
+            <Clock size={40} strokeWidth={2.4} className="text-charcoal-900" />
+          </div>
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-charcoal-900 dark:text-cream">
+            Waiting to be let in
+          </h1>
+          <p className="mt-2 text-charcoal-800/55 dark:text-cream/45">
+            Your request to join <b>{pending.householdName}</b> was sent. The admin needs to
+            approve it — this'll update the moment they do.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-charcoal-800/50 dark:text-cream/40">
+            <Loader2 size={18} className="animate-spin" />
+            <span className="text-sm font-semibold">Waiting for approval…</span>
+          </div>
+          <button
+            onClick={cancelPending}
+            className="mt-8 inline-flex items-center gap-1.5 py-2 text-sm font-semibold text-charcoal-800/45 dark:text-cream/40"
+          >
+            <X size={15} /> Cancel request
+          </button>
+        </div>
+      </motion.div>
+    )
   }
 
   return (
@@ -214,10 +298,10 @@ export function HouseholdGate() {
             {busy
               ? mode === 'create'
                 ? 'Creating…'
-                : 'Joining…'
+                : 'Requesting…'
               : mode === 'create'
                 ? 'Create household'
-                : 'Join household'}
+                : 'Ask to join'}
           </Button>
           <button
             onClick={useLocalOnly}

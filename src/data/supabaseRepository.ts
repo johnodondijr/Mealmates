@@ -69,6 +69,7 @@ export class SupabaseRepository implements Repository {
       monthly_budget: h?.monthly_budget ?? 30000,
       budget_mode: h?.budget_mode ?? false,
       currency: h?.currency ?? 'KES',
+      owner_member_id: h?.owner_member_id ?? null,
     }
 
     return {

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Moon, Settings, Sun } from 'lucide-react'
+import { Check, Moon, Settings, Sun, UserPlus } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useTheme } from '../store/ThemeContext'
 import { Avatar } from './ui/Avatar'
+import { RequestsSheet } from './RequestsSheet'
 import { chefFavoriteId } from '../engine/stats'
 
 interface AppHeaderProps {
@@ -18,10 +19,14 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
     setCurrentMemberId,
     onlineMemberIds,
     presenceEnabled,
+    isAdmin,
+    pendingRequests,
   } = useApp()
   const { theme, toggle } = useTheme()
   const [open, setOpen] = useState(false)
+  const [requestsOpen, setRequestsOpen] = useState(false)
   const chefId = chefFavoriteId(data)
+  const requestCount = isAdmin ? pendingRequests.length : 0
   const online = new Set(onlineMemberIds)
   // Others (not me) currently online — drives the little "live" badge.
   const othersLive = onlineMemberIds.filter((id) => id !== currentMemberId).length
@@ -39,6 +44,18 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {requestCount > 0 && (
+            <button
+              onClick={() => setRequestsOpen(true)}
+              className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-charcoal-900 shadow-card ring-1 ring-charcoal-900/[0.04] transition-transform active:scale-95 dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.06]"
+              aria-label="Join requests"
+            >
+              <UserPlus size={19} />
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-cream dark:ring-charcoal-950">
+                {requestCount}
+              </span>
+            </button>
+          )}
           <button
             onClick={toggle}
             className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-charcoal-900 shadow-card ring-1 ring-charcoal-900/[0.04] transition-transform active:scale-95 dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.06]"
@@ -118,6 +135,8 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
           </>
         )}
       </AnimatePresence>
+
+      {requestsOpen && <RequestsSheet onClose={() => setRequestsOpen(false)} />}
     </header>
   )
 }

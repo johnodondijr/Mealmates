@@ -12,6 +12,7 @@ import type {
   AppData,
   Expense,
   Food,
+  JoinRequest,
   MealCost,
   MealEaten,
   Member,
@@ -28,6 +29,10 @@ import {
   setHouseholdId,
   supabase,
 } from '../data/supabaseClient'
+import {
+  approveJoinRequest as approveReq,
+  denyJoinRequest as denyReq,
+} from '../data/household'
 import { HouseholdGate } from '../components/HouseholdGate'
 import { newId } from '../lib/id'
 import { todayISO } from '../lib/format'
@@ -42,6 +47,12 @@ interface AppContextValue {
   onlineMemberIds: string[]
   presenceEnabled: boolean
   leaveHousehold: () => void
+
+  // Admin-approved joins.
+  isAdmin: boolean
+  pendingRequests: JoinRequest[]
+  approveJoinRequest: (req: JoinRequest) => Promise<void>
+  denyJoinRequest: (id: string) => Promise<void>
 
   currentMemberId: string
   setCurrentMemberId: (id: string) => void
@@ -180,6 +191,57 @@ function AppProviderInner({ children }: { children: ReactNode }) {
     window.location.reload()
   }, [])
 
+  // Pending join requests for this household, kept live so the admin sees them
+  // arrive in real time.
+  const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([])
+  useEffect(() => {
+    if (!presenceEnabled || !supabase || !householdId) {
+      setPendingRequests([])
+      return
+    }
+    let active = true
+    const load = async () => {
+      const { data: rows } = await supabase!
+        .from('join_requests')
+        .select('*')
+        .eq('household_id', householdId)
+        .eq('status', 'pending')
+        .order('created_at')
+      if (active) setPendingRequests((rows as JoinRequest[]) ?? [])
+    }
+    load()
+    const channel = supabase
+      .channel(`requests-${householdId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'join_requests',
+          filter: `household_id=eq.${householdId}`,
+        },
+        () => load(),
+      )
+      .subscribe()
+    return () => {
+      active = false
+      supabase!.removeChannel(channel)
+    }
+  }, [presenceEnabled, householdId])
+
+  const approveJoinRequest = useCallback(async (req: JoinRequest) => {
+    if (!supabase) return
+    await approveReq(supabase, req)
+    setPendingRequests((prev) => prev.filter((r) => r.id !== req.id))
+    await reload()
+  }, [reload])
+
+  const denyJoinRequest = useCallback(async (id: string) => {
+    if (!supabase) return
+    await denyReq(supabase, id)
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id))
+  }, [])
+
   // Every mutation optimistically reloads afterward so local state stays in
   // sync even on the same tab (BroadcastChannel doesn't fire on the sender).
   const withReload = useCallback(
@@ -194,6 +256,13 @@ function AppProviderInner({ children }: { children: ReactNode }) {
   const value = useMemo<AppContextValue | null>(() => {
     if (!data) return null
     const currentMember = data.members.find((m) => m.id === currentMemberId)
+    // The admin is the household owner. For households created before owners
+    // were tracked, fall back to the earliest-joined member.
+    const earliestMemberId = data.members
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]?.id
+    const ownerId = data.settings.owner_member_id ?? earliestMemberId
+    const isAdmin = presenceEnabled && !!ownerId && ownerId === currentMemberId
 
     return {
       data,
@@ -203,6 +272,10 @@ function AppProviderInner({ children }: { children: ReactNode }) {
       onlineMemberIds,
       presenceEnabled,
       leaveHousehold,
+      isAdmin,
+      pendingRequests,
+      approveJoinRequest,
+      denyJoinRequest,
       currentMemberId,
       setCurrentMemberId,
       currentMember,
@@ -255,6 +328,9 @@ function AppProviderInner({ children }: { children: ReactNode }) {
     onlineMemberIds,
     presenceEnabled,
     leaveHousehold,
+    pendingRequests,
+    approveJoinRequest,
+    denyJoinRequest,
   ])
 
   if (!value) {

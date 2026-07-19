@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Household, Member } from '../types'
+import type { Household, JoinRequest, Member } from '../types'
 import { SEED_FOODS } from './seed'
+import { newId } from '../lib/id'
 
 // Short, shareable join codes. No ambiguous characters (0/O, 1/I/L) so codes
 // are easy to read out loud or type on a phone.
@@ -58,6 +59,7 @@ export async function createHousehold(
       monthly_budget: opts.monthly_budget || 0,
       budget_mode: opts.budget_mode,
       currency: opts.currency ?? 'KES',
+      owner_member_id: opts.member.id, // the creator is the admin
       created_at: new Date().toISOString(),
     }
     const { data, error } = await db.from('households').insert(row).select().single()
@@ -96,21 +98,62 @@ export async function lookupHousehold(
   return { household: data as Household, members: (members as Member[]) ?? [] }
 }
 
-// Join an existing household by adding a new member profile for this person.
-export async function joinHousehold(
+// Request to join a household (admin-approved). Creates a pending request the
+// admin can approve or deny. Returns the request + household name, or null if
+// the code doesn't exist.
+export async function requestToJoin(
   db: SupabaseClient,
   code: string,
   member: NewMember,
-): Promise<HouseholdJoinResult | null> {
+): Promise<{ request: JoinRequest; householdName: string } | null> {
   const found = await lookupHousehold(db, code)
   if (!found) return null
-  await db.from('members').insert({
-    id: member.id,
+  const row = {
+    id: newId('req'),
     household_id: found.household.id,
     name: member.name,
     emoji: member.emoji,
     color: member.color,
+    status: 'pending' as const,
+    member_id: null,
+    created_at: new Date().toISOString(),
+  }
+  const { data, error } = await db.from('join_requests').insert(row).select().single()
+  if (error) throw new Error(error.message)
+  return { request: data as JoinRequest, householdName: found.household.name }
+}
+
+// Poll a single request (the joiner watches this until approved/denied).
+export async function getJoinRequest(
+  db: SupabaseClient,
+  requestId: string,
+): Promise<JoinRequest | null> {
+  const { data } = await db.from('join_requests').select('*').eq('id', requestId).maybeSingle()
+  return (data as JoinRequest) ?? null
+}
+
+// Admin approves a request: create the member and stamp the request approved.
+export async function approveJoinRequest(
+  db: SupabaseClient,
+  request: JoinRequest,
+): Promise<string> {
+  const memberId = request.member_id ?? newId('member')
+  await db.from('members').insert({
+    id: memberId,
+    household_id: request.household_id,
+    name: request.name,
+    emoji: request.emoji,
+    color: request.color,
     created_at: new Date().toISOString(),
   })
-  return { household: found.household, memberId: member.id }
+  await db
+    .from('join_requests')
+    .update({ status: 'approved', member_id: memberId })
+    .eq('id', request.id)
+  return memberId
+}
+
+// Admin denies a request.
+export async function denyJoinRequest(db: SupabaseClient, requestId: string): Promise<void> {
+  await db.from('join_requests').update({ status: 'denied' }).eq('id', requestId)
 }

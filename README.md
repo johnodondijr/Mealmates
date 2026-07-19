@@ -96,17 +96,23 @@ npm run preview   # preview the production build
 
    then restart `npm run dev`.
 
-After connecting you'll **create a household** (which gives you a short
-join code) or **join** one with a code. One Supabase project can host
-several isolated households — each only sees its own members, meals, votes,
-wishes and spending. Share your code (**Settings → Sync**) so housemates
-can join, and you'll see who's **live** in real time (a green dot on their
-avatar). The food catalog is shared across households; everything else is
-scoped per household.
+After connecting you'll **create a household** (which makes you its **admin**
+and gives you a short join code) or **ask to join** one with a code. One
+Supabase project can host several isolated households — each only sees its
+own members, meals, votes, wishes and spending. Share your code
+(**Settings → Sync**) so housemates can request to join; the admin gets a
+live **join-request** badge in the header and taps ✓/✗ to let them in
+(FPL-league style). You'll also see who's **live** in real time (a green dot
+on their avatar). The food catalog is shared across households; everything
+else is scoped per household.
+
+> Security note: with the built-in shared key and permissive RLS, the
+> approval flow gates the *experience*, not the database. For hard isolation
+> add Supabase Auth + RLS policies (a larger follow-up).
 
 > Already ran an older `schema.sql`? Re-run the updated one (it's
-> idempotent) or apply `supabase/migrations/0005_households.sql` to add the
-> households table and `household_id` columns.
+> idempotent), or apply the newer migrations in order —
+> `0005_households.sql`, `0006_weetabix_drink.sql`, `0007_join_requests.sql`.
 
 > Using the Supabase CLI instead? `supabase db push` will apply the
 > migrations in `supabase/migrations/`.

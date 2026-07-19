@@ -18,8 +18,24 @@ create table if not exists public.households (
   monthly_budget numeric not null default 30000,
   budget_mode boolean not null default false,
   currency text not null default 'KES',
+  owner_member_id text,                    -- the admin who approves joins
   created_at timestamptz not null default now()
 );
+alter table public.households add column if not exists owner_member_id text;
+
+-- ---------- join_requests (admin-approved joins) ----------
+create table if not exists public.join_requests (
+  id text primary key,
+  household_id text not null references public.households(id) on delete cascade,
+  name text not null,
+  emoji text not null default '🙂',
+  color text not null default '#C4704F',
+  status text not null default 'pending' check (status in ('pending','approved','denied')),
+  member_id text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_join_requests_hh on public.join_requests(household_id);
+create index if not exists idx_join_requests_status on public.join_requests(status);
 
 -- ---------- members ----------
 create table if not exists public.members (
@@ -191,7 +207,7 @@ declare t text;
 begin
   foreach t in array array[
     'households','members','foods','food_preferences','meal_wishes','votes',
-    'vote_options','vote_ballots','meals_eaten','expenses','settings'
+    'vote_options','vote_ballots','meals_eaten','expenses','settings','join_requests'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);
