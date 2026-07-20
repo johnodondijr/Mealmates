@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { RefreshCw, Wand2, X } from 'lucide-react'
+import { RefreshCw, Utensils, Wand2, X } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useNav } from '../store/NavContext'
 import type { MealSlot, ScoredCombo, Vote, VoteOption } from '../types'
 import { Sheet } from './ui/Sheet'
 import { Button } from './ui/Button'
@@ -21,6 +22,7 @@ const SLOTS: { id: MealSlot; label: string; emoji: string }[] = [
 
 export function CreateVoteSheet({ onClose }: CreateVoteSheetProps) {
   const { data, currentMemberId, createVote } = useApp()
+  const { setTab } = useNav()
   const [slot, setSlot] = useState<MealSlot>('dinner')
   const [title, setTitle] = useState('')
   const [candidates, setCandidates] = useState<ScoredCombo[]>(() =>
@@ -98,6 +100,12 @@ export function CreateVoteSheet({ onClose }: CreateVoteSheetProps) {
 
   const canStart = candidates.filter((c) => comboLabel(c)).length >= 2
 
+  // Escape hatch: build your own options in Foods instead of the suggestions.
+  const pickInFoods = () => {
+    onClose()
+    setTab('foods')
+  }
+
   return (
     <Sheet open onClose={onClose} title="Start a meal vote">
       <div className="space-y-4">
@@ -174,6 +182,14 @@ export function CreateVoteSheet({ onClose }: CreateVoteSheetProps) {
             + Add another option
           </Button>
         )}
+
+        {/* Prefer to choose specific dishes? Head to Foods. */}
+        <button
+          onClick={pickInFoods}
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-charcoal-900/15 py-2.5 text-sm font-semibold text-charcoal-800/60 transition-colors hover:border-paprika-400 hover:text-paprika-600 dark:border-white/15 dark:text-cream/50"
+        >
+          <Utensils size={15} /> Don't like these? Pick your own in Foods
+        </button>
 
         <Button fullWidth onClick={start} disabled={!canStart}>
           🗳️ Start voting
