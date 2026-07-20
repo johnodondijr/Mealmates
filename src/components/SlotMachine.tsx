@@ -1,10 +1,68 @@
-import { motion, useReducedMotion } from 'framer-motion'
-import { useMemo } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { Food } from '../types'
 import { cn } from '../lib/cn'
 
 const ITEM_H = 104 // px per reel item
+
+// Food emojis each empty slot gently cycles through while idle — a hint at what
+// belongs there, keyed by the reel's label.
+const IDLE_EMOJIS: Record<string, string[]> = {
+  Base: ['🍚', '🌽', '🥔', '🍝', '🫓'],
+  Protein: ['🍗', '🥩', '🐟', '🫘', '🥚'],
+  Veg: ['🥬', '🥦', '🥕', '🌿', '🍅'],
+  Drink: ['🍵', '☕', '🥛', '🥣', '🧃'],
+  Breakfast: ['🍞', '🥚', '🥞', '🍩', '🥜'],
+}
+
+// An idle slot: a food emoji that floats and slowly cross-fades to the next,
+// staggered per reel so the row reads as a soft wave.
+function IdleSlot({ label, delay, reduce }: { label: string; delay: number; reduce: boolean }) {
+  const emojis = IDLE_EMOJIS[label] ?? ['🍽️']
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    if (reduce || emojis.length < 2) return
+    let interval: ReturnType<typeof setInterval> | undefined
+    // Offset each reel's cycle so they don't flip in unison.
+    const start = setTimeout(() => {
+      setI((n) => (n + 1) % emojis.length)
+      interval = setInterval(() => setI((n) => (n + 1) % emojis.length), 2000)
+    }, delay * 1000)
+    return () => {
+      clearTimeout(start)
+      if (interval) clearInterval(interval)
+    }
+  }, [reduce, emojis.length, delay])
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-1.5">
+      <motion.div
+        className="flex h-11 w-11 items-center justify-center"
+        animate={reduce ? undefined : { y: [0, -5, 0] }}
+        transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay }}
+      >
+        <div className="relative flex h-full w-full items-center justify-center">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={emojis[i]}
+              className="absolute text-[2rem] leading-none"
+              initial={{ opacity: 0, y: 7, scale: 0.7 }}
+              animate={{ opacity: 0.55, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -7, scale: 0.7 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            >
+              {emojis[i]}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+      </motion.div>
+      <span className="font-display text-[0.7rem] font-bold uppercase tracking-wide text-charcoal-800/40 dark:text-cream/40">
+        {label}
+      </span>
+    </div>
+  )
+}
 
 interface ReelProps {
   pool: Food[]
@@ -50,12 +108,7 @@ function Reel({ pool, target, label, spinning, delay, onStop, onSwap }: ReelProp
       style={{ height: ITEM_H }}
     >
       {idle ? (
-        <div className="flex h-full flex-col items-center justify-center gap-1.5">
-          <span className="text-3xl opacity-25">🍽️</span>
-          <span className="font-display text-[0.7rem] font-bold uppercase tracking-wide text-charcoal-800/40 dark:text-cream/40">
-            {label}
-          </span>
-        </div>
+        <IdleSlot label={label} delay={delay} reduce={!!reduce} />
       ) : (
         <motion.div
           initial={false}
