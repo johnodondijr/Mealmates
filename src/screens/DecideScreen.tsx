@@ -55,6 +55,9 @@ export function DecideScreen() {
   const [recentSigs, setRecentSigs] = useState<string[]>([])
   // Foods shown in the last couple of spins — down-weighted for variety.
   const [recentFoodIds, setRecentFoodIds] = useState<string[]>([])
+  // A fruit to round off the meal, and whether the user added it.
+  const [fruit, setFruit] = useState<Food | null>(null)
+  const [fruitAdded, setFruitAdded] = useState(false)
   const [tipDismissed, setTipDismissed] = useState(
     () => localStorage.getItem('mealmates.tip1') === '1',
   )
@@ -65,6 +68,21 @@ export function DecideScreen() {
   }
 
   const spinning = spinningSlots.some(Boolean)
+
+  // Suggestable fruits for the "finish with a fruit" nudge.
+  const fruitPool = useMemo(
+    () =>
+      data.foods.filter(
+        (f) => f.category === 'fruit' && f.suggestable !== false && f.available !== false,
+      ),
+    [data.foods],
+  )
+  const pickFruit = (excludeId?: string): Food | null => {
+    const pool = fruitPool.filter((f) => f.id !== excludeId)
+    const src = pool.length ? pool : fruitPool
+    return src.length ? src[Math.floor(Math.random() * src.length)] : null
+  }
+  const swapFruit = () => setFruit((f) => pickFruit(f?.id))
 
   // Reels follow the slot: breakfast = Drink + Breakfast, otherwise Base/Protein/Veg.
   const reelPools = useMemo(() => {
@@ -118,6 +136,8 @@ export function DecideScreen() {
     ) as string[]
     setRecentFoodIds((prev) => [...nextFoods, ...prev].slice(0, 6))
     setCombo(next)
+    setFruit(pickFruit())
+    setFruitAdded(false)
     setLogged(false)
     setRevealed(false)
     setSpinningSlots(reelPools.map(() => true))
@@ -154,18 +174,23 @@ export function DecideScreen() {
     setPresent((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
   }
 
-  const costItems = (c: ScoredCombo) =>
-    ([c.base, c.protein, c.veg].filter(Boolean) as Food[]).map((f) => ({
+  const costItems = (c: ScoredCombo) => {
+    const items = [c.base, c.protein, c.veg].filter(Boolean) as Food[]
+    if (fruitAdded && fruit) items.push(fruit)
+    return items.map((f) => ({
       food_id: f.id,
       label: f.name,
       suggested: foodAvgCost(data, f.id) ?? f.cost,
     }))
+  }
 
   const logWithCosts = async (costs: MealCost[]) => {
     if (!combo) return
+    const label =
+      comboLabel(combo) + (fruitAdded && fruit ? ` + ${fruit.name}` : '')
     await logMeal(
       mealFromCombo(
-        comboLabel(combo),
+        label,
         slot,
         {
           base_id: combo.base?.id ?? null,
@@ -186,6 +211,8 @@ export function DecideScreen() {
   const changeSlot = (s: MealSlot) => {
     setSlot(s)
     setCombo(null)
+    setFruit(null)
+    setFruitAdded(false)
     setSpinningSlots([])
     setRevealed(false)
     setLogged(false)
@@ -355,6 +382,46 @@ export function DecideScreen() {
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {/* Finish with a fruit — a light nudge toward a rounded meal */}
+                {slot !== 'breakfast' && fruit && comboLabel(combo) && (
+                  <div
+                    className={cn(
+                      'mt-3 flex items-center gap-2.5 rounded-2xl px-3 py-2.5 ring-1 transition-colors',
+                      fruitAdded
+                        ? 'bg-avocado-50 ring-avocado-300 dark:bg-avocado-500/10 dark:ring-avocado-500/30'
+                        : 'bg-cream ring-charcoal-900/[0.05] dark:bg-charcoal-950 dark:ring-white/[0.06]',
+                    )}
+                  >
+                    <button
+                      onClick={() => setFruitAdded((a) => !a)}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                    >
+                      <span className="text-2xl">{fruit.emoji}</span>
+                      <div className="min-w-0">
+                        <p className="font-display text-sm font-bold text-charcoal-900 dark:text-cream">
+                          Finish with {fruit.name}
+                        </p>
+                        <p className="text-[0.72rem] font-semibold text-charcoal-800/45 dark:text-cream/40">
+                          {fruitAdded ? 'Added — counts in your meal' : 'A fruit to round it off · tap to add'}
+                        </p>
+                      </div>
+                    </button>
+                    {fruitAdded ? (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-avocado-500 text-white">
+                        <Check size={16} strokeWidth={3} />
+                      </span>
+                    ) : (
+                      <button
+                        onClick={swapFruit}
+                        aria-label="Suggest another fruit"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-charcoal-800/50 ring-1 ring-charcoal-900/[0.06] active:scale-90 dark:bg-charcoal-800 dark:text-cream/50 dark:ring-white/[0.06]"
+                      >
+                        <RefreshCw size={15} />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
