@@ -94,6 +94,34 @@ export const TEXTURE_MAP: Record<string, Texture> = {
   food_weetabix: 'saucy',
 }
 
+// Conceptual tags used by the suggestion engine to avoid bad pairings
+// (see pairClash in engine/suggest.ts):
+//   legume — pulses; never put two on one plate (beans + green beans, etc.)
+//   maize  — maize-based; with a legume it's just githeri, so don't double up
+//   mash   — soft mashed starch; wants a saucy stew, not a dry/fishy side
+//   fishy  — dry/strong fish proteins that clash with a mash
+export const FOOD_TAGS: Record<string, string[]> = {
+  // legumes / pulses
+  food_beans: ['legume'],
+  food_ndengu: ['legume'],
+  food_njahi: ['legume'],
+  food_minji_peas_: ['legume'],
+  food_kamande_lentils_: ['legume'],
+  food_green_beans: ['legume'],
+  food_githeri: ['legume', 'maize'], // maize + beans already
+  // maize-based starches
+  food_muthokoi: ['maize'],
+  food_boiled_maize: ['maize'],
+  food_roasted_maize: ['maize'],
+  // soft mashes
+  food_mukimo: ['mash'],
+  food_mashed_potatoes: ['mash'],
+  // dry / strong fish
+  food_omena: ['fishy'],
+  food_fried_tilapia: ['fishy'],
+  food_fish_stew: ['fishy'],
+}
+
 export const SEED_FOODS: Food[] = [
   // ---- Bases / Starches ----
   food('Ugali', 'base', '🌽', 40, 'Easy', 15),
@@ -110,7 +138,8 @@ export const SEED_FOODS: Food[] = [
   food('Biryani', 'base', '🍛', 250, 'Hard', 70),
   food('Coconut Rice', 'base', '🍚', 120, 'Medium', 35),
   food('Wimbi Ugali', 'base', '🌾', 50, 'Easy', 15),
-  food('Boiled Maize', 'base', '🌽', 40, 'Easy', 20),
+  // Boiled maize is a snack/breakfast eaten with a drink — not a dinner base.
+  food('Boiled Maize', 'breakfast', '🌽', 40, 'Easy', 20),
   // Kept as an option, but not something eaten for regular meals — never suggested.
   food('Fries / Chips', 'base', '🍟', 120, 'Medium', 25, false),
 

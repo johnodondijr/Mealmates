@@ -207,6 +207,8 @@ create index if not exists idx_expenses_hh on public.expenses(household_id);
 -- Weetabix is a wet, milk-based breakfast — group it with the drinks so a
 -- breakfast spin never pairs it with tea/coffee.
 update public.foods set category = 'drink', texture = 'saucy' where id = 'food_weetabix';
+-- Boiled maize is a snack/breakfast, not a dinner base.
+update public.foods set category = 'breakfast' where id = 'food_boiled_maize';
 
 -- ---------- Realtime + permissive RLS ----------
 do $$

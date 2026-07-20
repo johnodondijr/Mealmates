@@ -6,6 +6,7 @@ import type {
   MealSlot,
   ScoredCombo,
 } from '../types'
+import { FOOD_TAGS } from '../data/seed'
 import { daysSince, todayISO } from '../lib/format'
 
 // Which food categories make up a meal for each slot. Breakfast is a
@@ -68,15 +69,35 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_beef_stew: 2.5,
     food_chicken_wet_fry_: 2.5,
   },
+  // Mukimo is a soft mash — it wants a light, saucy stew, not dry/fishy sides.
   food_mukimo: {
     food_beef_stew: 3,
-    food_nyama_choma: 2.5,
-    food_kachumbari: 2,
+    food_minced_meat: 2.5,
+    food_chicken_wet_fry_: 2.5,
+    food_kachumbari: 1.5,
   },
   food_mashed_potatoes: {
     food_beef_stew: 2.5,
     food_sausages: 2,
     food_chicken_wet_fry_: 2,
+  },
+  // Rich rice dishes go with meat/goat/chicken stews.
+  food_biryani: {
+    food_beef_stew: 3,
+    food_goat_stew: 3,
+    food_chicken_wet_fry_: 3,
+    food_chicken_dry_fry_: 2.5,
+    food_boiled_meat: 2.5,
+    food_kienyeji_chicken: 2.5,
+    food_nyama_choma: 2,
+    food_kachumbari: 2,
+  },
+  food_pilau: {
+    food_goat_stew: 3,
+    food_beef_stew: 2.5,
+    food_chicken_wet_fry_: 2.5,
+    food_boiled_meat: 2.5,
+    food_kachumbari: 3, // pilau + kachumbari is the classic
   },
   food_fries___chips: {
     food_chicken_dry_fry_: 2.5,
@@ -84,6 +105,35 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_eggs: 2,
     food_kachumbari: 1.5,
   },
+}
+
+// ---- Clash logic ----
+// Tags let us reason about bad pairings generically instead of listing every
+// pair. See FOOD_TAGS in seed.ts.
+function tagsOf(f?: Food): string[] {
+  return (f && FOOD_TAGS[f.id]) || []
+}
+
+// Penalty for two foods that shouldn't share a plate. 0 = fine.
+function pairClash(a?: Food, b?: Food): number {
+  if (!a || !b) return 0
+  const ta = tagsOf(a)
+  const tb = tagsOf(b)
+  const both = (x: string, y: string) =>
+    (ta.includes(x) && tb.includes(y)) || (tb.includes(x) && ta.includes(y))
+  let p = 0
+  // Two legumes on one plate (e.g. beans + green beans, githeri + kamande).
+  if (ta.includes('legume') && tb.includes('legume')) p += 8
+  // A soft mash with a dry/fishy protein (e.g. mukimo + omena/fish).
+  if (both('mash', 'fishy')) p += 8
+  // A maize base with a legume — that's just githeri, don't double it up.
+  if (both('maize', 'legume')) p += 5
+  return p
+}
+
+// Total clash penalty across a base/protein/veg combo.
+function comboClash(c: { base?: Food; protein?: Food; veg?: Food }): number {
+  return pairClash(c.base, c.protein) + pairClash(c.base, c.veg) + pairClash(c.protein, c.veg)
 }
 
 export interface SuggestOptions {
@@ -286,6 +336,9 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
     const sig = comboSignature(c)
     const { score: moisture, reason } = moistureScore(c)
     c.score += moisture
+    // Foods that don't belong together (two legumes, mash + fish, …) are
+    // pushed right down so they effectively never surface.
+    c.score -= comboClash(c) * 2
     if (reason) c.reasons = [...new Set([reason, ...c.reasons])].slice(0, 3)
     if (softAvoid.has(sig)) c.score -= 6 // eaten recently — push down
     if (!bySig.has(sig)) {
@@ -297,6 +350,10 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   // Drop anything hard-avoided (today / this session's recent spins).
   let pool = candidates.filter((c) => !hardAvoid.has(comboSignature(c)))
   if (pool.length === 0) pool = candidates
+
+  // Strongly prefer combos with no clash at all, if any exist.
+  const clean = pool.filter((c) => comboClash(c) === 0)
+  if (clean.length > 0) pool = clean
 
   // Require a fresh spin to change at least two slots from what's on screen, so
   // consecutive spins never look near-identical. Fall back if the library is
@@ -347,10 +404,21 @@ export function rerollComponent(
   const pairMap =
     base && opts.slot !== 'breakfast' ? CLASSIC_PAIRS[base.id] ?? {} : {}
 
+  // The other two slots we're keeping — the swap shouldn't clash with them.
+  const kept = [current.base, current.protein, current.veg].filter(
+    (_, i) => i !== index,
+  )
+
   const scores = data.foods
     .filter((f) => f.category === cat && f.suggestable !== false && f.available !== false)
     .map((f) => scoreFood(f, pref, lastEaten, opts))
-    .map((s) => ({ ...s, score: s.score + (pairMap[s.food.id] ?? 0) }))
+    .map((s) => ({
+      ...s,
+      score:
+        s.score +
+        (pairMap[s.food.id] ?? 0) -
+        kept.reduce((sum, k) => sum + pairClash(s.food, k), 0) * 2,
+    }))
 
   return pickWeighted(scores, exclude)?.food ?? currentFood
 }
@@ -379,13 +447,23 @@ function generateCombo(
   const pairMap =
     slot !== 'breakfast' && first ? CLASSIC_PAIRS[first.food.id] ?? {} : {}
 
-  const boost = (scores: FoodScore[]) =>
-    scores.map((s) => ({ ...s, score: s.score + (pairMap[s.food.id] ?? 0) }))
+  // Boost classic pairings AND penalise clashes against what's already picked,
+  // so a bad combo (two legumes, mash + fish…) rarely forms in the first place.
+  const shape = (scores: FoodScore[], kept: (Food | undefined)[]) =>
+    scores.map((s) => ({
+      ...s,
+      score:
+        s.score +
+        (pairMap[s.food.id] ?? 0) -
+        kept.reduce((sum, k) => sum + pairClash(s.food, k), 0),
+    }))
 
   const second = cats[1]
-    ? pickWeighted(boost(byCat(cats[1])), exclude)
+    ? pickWeighted(shape(byCat(cats[1]), [first?.food]), exclude)
     : null
-  const third = cats[2] ? pickWeighted(boost(byCat(cats[2])), exclude) : null
+  const third = cats[2]
+    ? pickWeighted(shape(byCat(cats[2]), [first?.food, second?.food]), exclude)
+    : null
 
   const reasons: string[] = []
   if (first && second && pairMap[second.food.id]) {

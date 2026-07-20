@@ -19,7 +19,7 @@ import { newId } from '../lib/id'
 const STORAGE_KEY = 'mealmates.data.v2'
 const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
-const CURRENT_SCHEMA = 8
+const CURRENT_SCHEMA = 9
 
 // Old loud member colours → curated muted equivalents.
 const MEMBER_RECOLOR: Record<string, string> = {
@@ -88,6 +88,8 @@ function applyFixups(data: AppData): boolean {
     // Weetabix is a wet, milk-based breakfast — sits with the drinks so it's
     // never spun alongside tea/coffee.
     food_weetabix: 'drink',
+    // Boiled maize is a snack/breakfast, not a dinner base.
+    food_boiled_maize: 'breakfast',
   }
   for (const f of data.foods) {
     if (recat[f.id]) f.category = recat[f.id]
