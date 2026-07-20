@@ -35,8 +35,10 @@ const BAKED_URL = 'https://eqrywvkofzomcnlajryu.supabase.co'
 const BAKED_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxcnl3dmtvZnpvbWNubGFqcnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NTc5MTQsImV4cCI6MjEwMDAzMzkxNH0.FH_YmCwiL_Q0lfe0qV72i4jQs11_kA7cq6CXS9JQ3Kc'
 
-const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+// Treat empty strings as absent — CI can inject VITE_SUPABASE_* as "" when the
+// secrets don't exist, which must NOT shadow the baked-in project.
+const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || undefined
+const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || undefined
 
 // Explicit "this device only" opt-out — needed because baked creds would
 // otherwise always enable sync.
