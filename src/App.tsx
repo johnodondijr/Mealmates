@@ -9,6 +9,7 @@ import { MoneyScreen } from './screens/MoneyScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { Onboarding } from './components/Onboarding'
+import { LiveToasts } from './components/LiveToasts'
 import { NavProvider } from './store/NavContext'
 import { useApp } from './store/AppContext'
 
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <NavProvider value={{ tab, setTab }}>
     <div className="min-h-screen bg-cream text-charcoal-900 dark:bg-charcoal-950 dark:text-cream">
+      <LiveToasts />
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
         <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
 
