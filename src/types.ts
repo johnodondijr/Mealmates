@@ -22,6 +22,7 @@ export interface Member {
   name: string
   emoji: string
   color: string // hex
+  auth_id?: string | null // Supabase Auth user id (for row-level security)
   created_at: string
 }
 
@@ -154,6 +155,8 @@ export interface Settings {
   // The member who created the household (the admin who approves joins).
   // Undefined in local (single-device) mode.
   owner_member_id?: string | null
+  // Admin email for join-request notifications (Supabase mode).
+  admin_email?: string | null
 }
 
 // A shared household (Supabase mode). Its `id` doubles as the short join code
@@ -166,6 +169,7 @@ export interface Household {
   budget_mode: boolean
   currency: string
   owner_member_id: string | null
+  admin_email?: string | null
   created_at: string
 }
 
@@ -182,6 +186,7 @@ export interface JoinRequest {
   color: string
   status: JoinRequestStatus
   member_id: string | null
+  requester_auth_id?: string | null
   created_at: string
 }
 

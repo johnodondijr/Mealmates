@@ -19,9 +19,11 @@ create table if not exists public.households (
   budget_mode boolean not null default false,
   currency text not null default 'KES',
   owner_member_id text,                    -- the admin who approves joins
+  admin_email text,                        -- optional: notify on join requests
   created_at timestamptz not null default now()
 );
 alter table public.households add column if not exists owner_member_id text;
+alter table public.households add column if not exists admin_email text;
 
 -- ---------- join_requests (admin-approved joins) ----------
 create table if not exists public.join_requests (
@@ -32,8 +34,10 @@ create table if not exists public.join_requests (
   color text not null default '#C4704F',
   status text not null default 'pending' check (status in ('pending','approved','denied')),
   member_id text,
+  requester_auth_id text,
   created_at timestamptz not null default now()
 );
+alter table public.join_requests add column if not exists requester_auth_id text;
 create index if not exists idx_join_requests_hh on public.join_requests(household_id);
 create index if not exists idx_join_requests_status on public.join_requests(status);
 
@@ -44,9 +48,12 @@ create table if not exists public.members (
   name text not null,
   emoji text not null default '🙂',
   color text not null default '#C4704F',
+  auth_id text,
   created_at timestamptz not null default now()
 );
 alter table public.members add column if not exists household_id text references public.households(id) on delete cascade;
+alter table public.members add column if not exists auth_id text;
+create index if not exists idx_members_auth on public.members(auth_id);
 
 -- ---------- foods ----------
 create table if not exists public.foods (

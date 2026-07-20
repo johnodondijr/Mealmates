@@ -70,6 +70,7 @@ export class SupabaseRepository implements Repository {
       budget_mode: h?.budget_mode ?? false,
       currency: h?.currency ?? 'KES',
       owner_member_id: h?.owner_member_id ?? null,
+      admin_email: h?.admin_email ?? null,
     }
 
     return {
@@ -217,6 +218,7 @@ export class SupabaseRepository implements Repository {
         monthly_budget: settings.monthly_budget,
         budget_mode: settings.budget_mode,
         currency: settings.currency,
+        admin_email: settings.admin_email ?? null,
       })
       .eq('id', this.householdId)
   }

@@ -106,13 +106,47 @@ live **join-request** badge in the header and taps ✓/✗ to let them in
 on their avatar). The food catalog is shared across households; everything
 else is scoped per household.
 
-> Security note: with the built-in shared key and permissive RLS, the
-> approval flow gates the *experience*, not the database. For hard isolation
-> add Supabase Auth + RLS policies (a larger follow-up).
-
 > Already ran an older `schema.sql`? Re-run the updated one (it's
 > idempotent), or apply the newer migrations in order —
-> `0005_households.sql`, `0006_weetabix_drink.sql`, `0007_join_requests.sql`.
+> `0005`…`0009`.
+
+### 🔒 Hardening: true per-household isolation (optional)
+
+By default the approval flow gates the *experience*; the shared anon key +
+permissive RLS mean the data isn't locked at the database level. To enforce
+real isolation, the app already signs each device in **anonymously** and
+tags members/requests with that identity — you just enable it and switch on
+strict policies:
+
+1. In Supabase: **Authentication → Sign In / Providers → Anonymous sign-ins → enable.**
+2. Make sure everyone who needs access has **created or (re)joined** their
+   household on the live app (so their member row gets an `auth_id`). Members
+   with no `auth_id` will lose access under strict rules.
+3. Run **`supabase/migrations/0009_strict_rls.sql`** — it replaces "allow all"
+   with policies scoped to `my_household_ids()`. **Test with a second device.**
+   If anything locks up, run the **rollback block** at the bottom of that file
+   to restore the permissive policies.
+
+### ✉️ Email the admin on join requests (optional)
+
+Get an email when someone asks to join, on top of the in-app badge:
+
+1. Set your **alert email** in **Settings → Sync** (or when creating the
+   household). It's stored on `households.admin_email`.
+2. Grab a free API key from [resend.com](https://resend.com).
+3. Deploy the function and set secrets (Supabase CLI):
+
+   ```
+   supabase functions deploy notify-join-request --no-verify-jwt
+   supabase secrets set RESEND_API_KEY=re_xxx FROM_EMAIL="MealMates <onboarding@resend.dev>"
+   ```
+
+4. In Supabase: **Database → Webhooks → Create** a webhook on
+   `public.join_requests`, event **INSERT**, type **Supabase Edge Functions**
+   → `notify-join-request`.
+
+The function (`supabase/functions/notify-join-request/`) looks up the
+household's admin email and sends the alert via Resend.
 
 > Using the Supabase CLI instead? `supabase db push` will apply the
 > migrations in `supabase/migrations/`.

@@ -28,6 +28,7 @@ import {
   getHouseholdId,
   setHouseholdId,
   supabase,
+  ensureAuth,
 } from '../data/supabaseClient'
 import {
   approveJoinRequest as approveReq,
@@ -119,6 +120,9 @@ function AppProviderInner({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     try {
+      // Ensure an auth session exists before reading, so row-level security can
+      // scope the data once strict policies are enabled.
+      await ensureAuth()
       const fresh = await repo.loadAll()
       setData(fresh)
     } catch (e) {

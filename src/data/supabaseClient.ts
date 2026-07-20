@@ -75,9 +75,42 @@ export const supabaseConfigSource: 'runtime' | 'env' | 'baked' | 'none' = stored
 // no config at all.
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url as string, anonKey as string, {
+      auth: { persistSession: true, autoRefreshToken: true },
       realtime: { params: { eventsPerSecond: 5 } },
     })
   : null
+
+// Anonymous auth: give this device a durable identity so row-level security
+// can scope data to the households it belongs to. Fully graceful — if
+// anonymous sign-in isn't enabled in the Supabase project yet, we just proceed
+// without a session (permissive RLS still works), so nothing breaks. Awaited
+// before the first read/write so a session exists once strict RLS is enabled.
+let authReady: Promise<void> | null = null
+export function ensureAuth(): Promise<void> {
+  if (!supabase) return Promise.resolve()
+  if (!authReady) {
+    authReady = (async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!data.session) await supabase.auth.signInAnonymously()
+      } catch {
+        /* anonymous sign-in not enabled — carry on without auth */
+      }
+    })()
+  }
+  return authReady
+}
+
+export async function getAuthId(): Promise<string | null> {
+  await ensureAuth()
+  if (!supabase) return null
+  try {
+    const { data } = await supabase.auth.getUser()
+    return data.user?.id ?? null
+  } catch {
+    return null
+  }
+}
 
 // Persist (or clear) the runtime config. Callers should reload the app after
 // changing it so the repository is re-created against the new backend.

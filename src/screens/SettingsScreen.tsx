@@ -23,8 +23,14 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
     onlineMemberIds,
     presenceEnabled,
     leaveHousehold,
+    isAdmin,
   } = useApp()
   const [copied, setCopied] = useState(false)
+  const [adminEmail, setAdminEmail] = useState(data.settings.admin_email ?? '')
+  const saveAdminEmail = () => {
+    if ((data.settings.admin_email ?? '') === adminEmail.trim()) return
+    updateSettings({ ...data.settings, admin_email: adminEmail.trim() || null })
+  }
   const copyCode = () => {
     if (!householdId) return
     navigator.clipboard?.writeText(householdId).then(
@@ -182,6 +188,24 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
               <p className="mt-2 text-xs font-medium text-charcoal-800/50 dark:text-cream/40">
                 Share this code so housemates can join your household.
               </p>
+              {isAdmin && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs font-bold text-charcoal-800/50 dark:text-cream/40">
+                    Alert email (join requests)
+                  </label>
+                  <input
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    onBlur={saveAdminEmail}
+                    type="email"
+                    placeholder="you@example.com"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="w-full rounded-xl bg-cream px-4 py-2.5 text-sm font-semibold text-charcoal-900 outline-none ring-paprika-300 focus:ring-2 dark:bg-charcoal-950 dark:text-cream"
+                  />
+                </div>
+              )}
               <button
                 onClick={leaveHousehold}
                 className="mt-3 flex w-full items-center justify-center gap-1.5 py-1.5 text-sm font-bold text-red-500"

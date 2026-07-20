@@ -4,8 +4,9 @@ import { Loader2, Home, LogIn, Link2Off, Clock, X } from 'lucide-react'
 import { Button } from './ui/Button'
 import { cn } from './../lib/cn'
 import { newId } from '../lib/id'
-import { supabase, setHouseholdId, setLocalOnly } from '../data/supabaseClient'
+import { supabase, setHouseholdId, setLocalOnly, getAuthId } from '../data/supabaseClient'
 import { createHousehold, requestToJoin, getJoinRequest } from '../data/household'
+import { IntroCarousel } from './IntroCarousel'
 
 const AVATARS = [
   '🙂', '🦁', '🌸', '🚀', '🦋', '🐯', '🦊', '🐼', '🦉', '🐙',
@@ -53,10 +54,14 @@ export function HouseholdGate() {
   const [emoji, setEmoji] = useState(local?.emoji ?? '🙂')
   const [color, setColor] = useState(local?.color ?? COLORS[0])
   const [household, setHousehold] = useState('')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<Pending | null>(() => readPending())
+  const [introSeen, setIntroSeen] = useState(
+    () => localStorage.getItem('mealmates.intro') === '1',
+  )
 
   const member = () => ({ id: newId('member'), name: name.trim(), emoji, color })
 
@@ -102,12 +107,15 @@ export function HouseholdGate() {
     setBusy(true)
     setError(null)
     try {
+      const authId = await getAuthId()
       if (mode === 'create') {
         const { household: hh, memberId } = await createHousehold(supabase, {
           name: household.trim() || 'Our Household',
           monthly_budget: 30000,
           budget_mode: false,
           member: member(),
+          authId,
+          adminEmail: email.trim() || null,
         })
         finish(hh.id, memberId)
       } else {
@@ -116,7 +124,7 @@ export function HouseholdGate() {
           setBusy(false)
           return
         }
-        const res = await requestToJoin(supabase, code, member())
+        const res = await requestToJoin(supabase, code, member(), authId)
         if (!res) {
           setError("No household with that code — double-check it with whoever set it up.")
           setBusy(false)
@@ -142,6 +150,18 @@ export function HouseholdGate() {
   const useLocalOnly = () => {
     setLocalOnly(true)
     window.location.reload()
+  }
+
+  // First-time explainer — how MealMates works — before create/join.
+  if (!introSeen && !pending) {
+    return (
+      <IntroCarousel
+        onDone={() => {
+          localStorage.setItem('mealmates.intro', '1')
+          setIntroSeen(true)
+        }}
+      />
+    )
   }
 
   if (pending) {
@@ -265,6 +285,19 @@ export function HouseholdGate() {
               placeholder="e.g. The Odondis"
               className="w-full rounded-2xl bg-white px-4 py-3.5 font-display text-lg font-bold text-charcoal-900 shadow-card outline-none ring-paprika-300 focus:ring-2 dark:bg-charcoal-800 dark:text-cream"
             />
+            <div className="mt-4">
+              <Label>Your email (optional — to get join alerts)</Label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className="w-full rounded-2xl bg-white px-4 py-3.5 text-sm font-semibold text-charcoal-900 shadow-card outline-none ring-paprika-300 focus:ring-2 dark:bg-charcoal-800 dark:text-cream"
+              />
+            </div>
           </>
         ) : (
           <>

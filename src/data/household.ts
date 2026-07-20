@@ -45,6 +45,8 @@ export async function createHousehold(
     budget_mode: boolean
     currency?: string
     member: NewMember
+    authId?: string | null
+    adminEmail?: string | null
   },
 ): Promise<HouseholdJoinResult> {
   await ensureFoodCatalog(db)
@@ -60,6 +62,7 @@ export async function createHousehold(
       budget_mode: opts.budget_mode,
       currency: opts.currency ?? 'KES',
       owner_member_id: opts.member.id, // the creator is the admin
+      admin_email: opts.adminEmail ?? null,
       created_at: new Date().toISOString(),
     }
     const { data, error } = await db.from('households').insert(row).select().single()
@@ -74,6 +77,7 @@ export async function createHousehold(
     name: opts.member.name,
     emoji: opts.member.emoji,
     color: opts.member.color,
+    auth_id: opts.authId ?? null,
     created_at: new Date().toISOString(),
   })
 
@@ -105,6 +109,7 @@ export async function requestToJoin(
   db: SupabaseClient,
   code: string,
   member: NewMember,
+  authId?: string | null,
 ): Promise<{ request: JoinRequest; householdName: string } | null> {
   const found = await lookupHousehold(db, code)
   if (!found) return null
@@ -116,6 +121,7 @@ export async function requestToJoin(
     color: member.color,
     status: 'pending' as const,
     member_id: null,
+    requester_auth_id: authId ?? null,
     created_at: new Date().toISOString(),
   }
   const { data, error } = await db.from('join_requests').insert(row).select().single()
@@ -144,6 +150,9 @@ export async function approveJoinRequest(
     name: request.name,
     emoji: request.emoji,
     color: request.color,
+    // Link the new member to the requester's auth identity so RLS grants them
+    // access to this household.
+    auth_id: request.requester_auth_id ?? null,
     created_at: new Date().toISOString(),
   })
   await db
