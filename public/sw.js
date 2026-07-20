@@ -1,7 +1,11 @@
 // MealMates service worker — enables installability + basic offline shell.
 // Network-first for navigations (so updates ship immediately), cache-first for
 // static assets, with a runtime cache fallback when offline.
-const CACHE = 'mealmates-v1'
+const CACHE = 'mealmates-v2'
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting()
+})
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
