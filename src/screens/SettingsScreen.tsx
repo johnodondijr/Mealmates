@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Copy, Database, HardDrive, LogOut, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Copy, Database, HardDrive, LogOut, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import type { Member } from '../types'
 import { Sheet } from '../components/ui/Sheet'
@@ -38,6 +38,24 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
   const [editing, setEditing] = useState<Member | null | undefined>(undefined)
   const [household, setHousehold] = useState(data.settings.household_name)
   const [budget, setBudget] = useState(String(data.settings.monthly_budget))
+
+  // Nuke the service worker + caches and reload — the escape hatch if an old
+  // build is ever stuck in cache.
+  const forceUpdate = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map((r) => r.unregister()))
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((k) => caches.delete(k)))
+      }
+    } catch {
+      /* ignore */
+    }
+    window.location.reload()
+  }
 
   const saveHousehold = () => {
     updateSettings({
@@ -176,8 +194,23 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
           <SyncSettings />
         </section>
 
+        {/* App version + force-update escape hatch */}
+        <section>
+          <button
+            onClick={forceUpdate}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 font-display text-sm font-bold text-charcoal-900 shadow-card ring-1 ring-charcoal-900/[0.05] active:scale-[0.99] dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.06]"
+          >
+            <RefreshCw size={16} /> Check for updates
+          </button>
+          <p className="mt-2 text-center text-xs font-semibold text-charcoal-800/40 dark:text-cream/40">
+            Clears the cache and reloads the newest version.
+          </p>
+        </section>
+
         <p className="pt-2 text-center text-xs font-semibold text-charcoal-800/40 dark:text-cream/40">
           MealMates · made for game-night meal debates 🍲
+          <br />
+          <span className="text-charcoal-800/30 dark:text-cream/25">build {__BUILD_ID__}</span>
         </p>
       </div>
 
