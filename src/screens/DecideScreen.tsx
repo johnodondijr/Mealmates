@@ -84,6 +84,51 @@ export function DecideScreen() {
   }
   const swapFruit = () => setFruit((f) => pickFruit(f?.id))
 
+  // Recently eaten meals for this slot — a quick way to bring one back.
+  const foodById = useMemo(() => new Map(data.foods.map((f) => [f.id, f])), [data.foods])
+  const recentMeals = useMemo(() => {
+    const seen = new Set<string>()
+    const out: typeof data.meals = []
+    const sorted = [...data.meals].sort(
+      (a, b) =>
+        b.eaten_on.localeCompare(a.eaten_on) || b.created_at.localeCompare(a.created_at),
+    )
+    for (const m of sorted) {
+      if (m.slot !== slot || !m.base_id) continue
+      if (seen.has(m.label)) continue
+      seen.add(m.label)
+      out.push(m)
+      if (out.length >= 4) break
+    }
+    return out
+  }, [data.meals, slot])
+
+  const mealEmojis = (m: (typeof data.meals)[number]) =>
+    [m.base_id, m.protein_id, m.veg_id]
+      .map((id) => (id ? foodById.get(id)?.emoji : undefined))
+      .filter(Boolean)
+      .join('')
+
+  // Load a past meal into the reveal, as if it had just been spun.
+  const loadMeal = (m: (typeof data.meals)[number]) => {
+    const base = m.base_id ? foodById.get(m.base_id) : undefined
+    const protein = m.protein_id ? foodById.get(m.protein_id) : undefined
+    const veg = m.veg_id ? foodById.get(m.veg_id) : undefined
+    setCombo({
+      base,
+      protein,
+      veg,
+      score: 0,
+      totalCost: (base?.cost ?? 0) + (protein?.cost ?? 0) + (veg?.cost ?? 0),
+      reasons: ['Brought back from your history 🕘'],
+    })
+    setFruit(null)
+    setFruitAdded(false)
+    setLogged(false)
+    setRevealed(true)
+    setSpinningSlots(reelPools.map(() => false))
+  }
+
   // Reels follow the slot: breakfast = Drink + Breakfast, otherwise Base/Protein/Veg.
   const reelPools = useMemo(() => {
     const cats = SLOT_CATEGORIES[slot]
@@ -105,11 +150,12 @@ export function DecideScreen() {
     }))
   }, [reelPools, combo, slot, spinningSlots])
 
-  // Reveal once every reel that was spinning has settled.
+  // Reveal once every reel that was spinning has settled. (Confetti is saved
+  // for when a meal is actually chosen — see logWithCosts — so it never covers
+  // the result you're still reading.)
   useEffect(() => {
     if (combo && spinningSlots.length > 0 && spinningSlots.every((s) => !s) && !revealed) {
       setRevealed(true)
-      setConfetti(true)
     }
   }, [spinningSlots, combo, revealed])
 
@@ -470,6 +516,29 @@ export function DecideScreen() {
           <p className="mt-2 text-center text-xs font-medium text-charcoal-800/45 dark:text-cream/40">
             Spin the reels for a smart, balanced pick
           </p>
+
+          {/* Bring back a recent meal for this slot */}
+          {recentMeals.length > 0 && !spinning && (
+            <div className="mt-6">
+              <p className="mb-2 px-1 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/45 dark:text-cream/40">
+                Had recently
+              </p>
+              <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+                {recentMeals.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => loadMeal(m)}
+                    className="flex shrink-0 items-center gap-2 rounded-2xl bg-white px-3 py-2 ring-1 ring-charcoal-900/[0.05] transition-transform active:scale-95 dark:bg-charcoal-800 dark:ring-white/[0.06]"
+                  >
+                    <span className="text-lg leading-none">{mealEmojis(m) || '🍽️'}</span>
+                    <span className="max-w-[8.5rem] truncate font-display text-xs font-bold text-charcoal-900 dark:text-cream">
+                      {m.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

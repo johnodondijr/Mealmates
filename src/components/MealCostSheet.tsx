@@ -72,6 +72,12 @@ export function MealCostSheet({
     await onConfirm(costs)
   }
 
+  // Log the meal now without itemising the cost (uses the estimate).
+  const skip = async () => {
+    setSaving(true)
+    await onConfirm([])
+  }
+
   return (
     <Sheet open onClose={onClose} title={title}>
       <p className="mb-4 text-sm font-medium text-charcoal-800/60 dark:text-cream/50">
@@ -128,6 +134,13 @@ export function MealCostSheet({
       <Button fullWidth onClick={confirm} disabled={saving} className="mt-4">
         {confirmLabel}
       </Button>
+      <button
+        onClick={skip}
+        disabled={saving}
+        className="mt-2 w-full py-2 text-sm font-semibold text-charcoal-800/50 disabled:opacity-50 dark:text-cream/45"
+      >
+        Skip — just log it (use the estimate)
+      </button>
     </Sheet>
   )
 }

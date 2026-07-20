@@ -44,10 +44,13 @@ export function VoteScreen() {
       </div>
 
       {open.length === 0 && closed.length === 0 && (
-        <div className="py-12 text-center">
+        <div className="py-10 text-center">
           <p className="text-5xl">🗳️</p>
           <p className="mt-2 font-display font-bold text-charcoal-800/60 dark:text-cream/50">
             No votes yet. Someone start one!
+          </p>
+          <p className="mx-auto mt-1 max-w-[16rem] text-xs font-medium text-charcoal-800/45 dark:text-cream/40">
+            Tap <b>Start a meal vote</b> above to put a few options to the house.
           </p>
         </div>
       )}

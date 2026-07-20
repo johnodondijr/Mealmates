@@ -52,7 +52,7 @@ export default function App() {
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
         <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
 
-        <main className="flex-1 pb-24">
+        <main className="flex-1 pb-28">
           <AnimatePresence mode="wait">
             <motion.div
               key={tab}
