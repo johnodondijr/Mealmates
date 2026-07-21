@@ -144,6 +144,8 @@ export interface SuggestOptions {
   excludeIds?: string[]
   // Whole-combo signatures to avoid repeating (recent spins on this screen).
   avoidSignatures?: string[]
+  // Combos a present member has permanently disliked — never suggest these.
+  dislikedSignatures?: string[]
   // Foods shown in the last few spins — softly down-weighted so the same
   // items don't keep reappearing (keeps the reels feeling varied).
   deprioritizeIds?: string[]
@@ -317,8 +319,9 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
 
-  // Never re-suggest a combo already eaten TODAY (any slot), or a recent spin.
-  const hardAvoid = new Set(opts.avoidSignatures ?? [])
+  // Never re-suggest a combo already eaten TODAY (any slot), a recent spin, or
+  // one a present member has permanently disliked.
+  const hardAvoid = new Set([...(opts.avoidSignatures ?? []), ...(opts.dislikedSignatures ?? [])])
   const today = todayISO()
   // Softly avoid combos eaten in the last 2 days so meals space out (~3 days).
   const softAvoid = new Set<string>()

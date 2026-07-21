@@ -38,8 +38,16 @@ function comboPrep(c: ScoredCombo): number {
 }
 
 export function DecideScreen() {
-  const { data, currentMemberId, currentMember, logMeal, updateSettings, onlineMemberIds, presenceEnabled } =
-    useApp()
+  const {
+    data,
+    currentMemberId,
+    currentMember,
+    logMeal,
+    updateSettings,
+    setComboDislike,
+    onlineMemberIds,
+    presenceEnabled,
+  } = useApp()
   const onlineSet = new Set(onlineMemberIds)
   const budgetMode = data.settings.budget_mode
 
@@ -58,6 +66,8 @@ export function DecideScreen() {
   // A fruit to round off the meal, and whether the user added it.
   const [fruit, setFruit] = useState<Food | null>(null)
   const [fruitAdded, setFruitAdded] = useState(false)
+  // Signature just disliked (drives the undo banner).
+  const [dislikeSig, setDislikeSig] = useState<string | null>(null)
   const [tipDismissed, setTipDismissed] = useState(
     () => localStorage.getItem('mealmates.tip1') === '1',
   )
@@ -68,6 +78,15 @@ export function DecideScreen() {
   }
 
   const spinning = spinningSlots.some(Boolean)
+
+  // Combos any present member has disliked — never suggest these to them.
+  const dislikedSignatures = useMemo(
+    () =>
+      data.comboDislikes
+        .filter((x) => present.includes(x.member_id))
+        .map((x) => x.signature),
+    [data.comboDislikes, present],
+  )
 
   // Suggestable fruits for the "finish with a fruit" nudge.
   const fruitPool = useMemo(
@@ -159,8 +178,9 @@ export function DecideScreen() {
     }
   }, [spinningSlots, combo, revealed])
 
-  // Full spin — all reels.
-  const roll = () => {
+  // Full spin — all reels. `extraDisliked` lets a just-disliked combo be
+  // avoided immediately, before the reload propagates.
+  const roll = (extraDisliked: string[] = []) => {
     const previous = combo
       ? {
           base: combo.base?.id ?? null,
@@ -173,6 +193,7 @@ export function DecideScreen() {
       presentMemberIds: present,
       slot,
       avoidSignatures: recentSigs,
+      dislikedSignatures: [...dislikedSignatures, ...extraDisliked],
       deprioritizeIds: recentFoodIds,
       previous,
     })
@@ -187,6 +208,21 @@ export function DecideScreen() {
     setLogged(false)
     setRevealed(false)
     setSpinningSlots(reelPools.map(() => true))
+  }
+
+  // "Don't suggest this combo to me again" — record it, then spin a fresh one.
+  const dislikeThis = () => {
+    if (!combo) return
+    const sig = comboSignature(combo)
+    setComboDislike(sig, true)
+    setDislikeSig(sig)
+    setTimeout(() => setDislikeSig((s) => (s === sig ? null : s)), 5000)
+    roll([sig])
+  }
+  const undoDislike = () => {
+    if (!dislikeSig) return
+    setComboDislike(dislikeSig, false)
+    setDislikeSig(null)
   }
 
   // Re-spin just one slot, keeping the rest.
@@ -472,7 +508,7 @@ export function DecideScreen() {
               </div>
 
               <div className="mt-3 flex gap-2">
-                <Button variant="secondary" onClick={roll} className="flex-1">
+                <Button variant="secondary" onClick={() => roll()} className="flex-1">
                   <RefreshCw size={18} /> Spin again
                 </Button>
                 <Button
@@ -489,6 +525,16 @@ export function DecideScreen() {
                   )}
                 </Button>
               </div>
+
+              {/* Personal dislike — never suggest this exact combo to me again */}
+              {comboLabel(combo) && !logged && (
+                <button
+                  onClick={dislikeThis}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 py-2 text-[0.82rem] font-semibold text-charcoal-800/45 transition-colors hover:text-red-500 dark:text-cream/40"
+                >
+                  👎 Not this combo — don't suggest it to me again
+                </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -500,7 +546,7 @@ export function DecideScreen() {
         <div>
           <Button
             size="lg"
-            onClick={roll}
+            onClick={() => roll()}
             disabled={spinning}
             fullWidth
             className="py-4 text-lg"
@@ -551,6 +597,31 @@ export function DecideScreen() {
           onConfirm={logWithCosts}
         />
       )}
+
+      {/* Undo banner after disliking a combo */}
+      <AnimatePresence>
+        {dislikeSig && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className="fixed inset-x-0 bottom-[84px] z-30 px-4"
+          >
+            <div className="mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-charcoal-900/95 px-4 py-3 shadow-pop dark:bg-charcoal-800">
+              <p className="flex-1 text-sm font-semibold text-cream">
+                Got it — won't suggest that to you again.
+              </p>
+              <button
+                onClick={undoDislike}
+                className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-sm font-bold text-cream"
+              >
+                Undo
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

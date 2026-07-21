@@ -33,6 +33,9 @@ export interface Repository {
     pref: Preference | null,
   ): Promise<void>
 
+  // Per-member "don't suggest this exact combo to me again". on=false undoes it.
+  setComboDislike(memberId: string, signature: string, on: boolean): Promise<void>
+
   // "I want to eat this today" pick. on=false removes it.
   setWish(
     memberId: string,

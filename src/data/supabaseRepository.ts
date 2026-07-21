@@ -37,6 +37,7 @@ export class SupabaseRepository implements Repository {
       members,
       foods,
       preferences,
+      comboDislikes,
       wishes,
       votes,
       voteOptions,
@@ -48,6 +49,7 @@ export class SupabaseRepository implements Repository {
       this.db.from('members').select('*').eq('household_id', hh).order('created_at'),
       this.db.from('foods').select('*').order('created_at'),
       this.db.from('food_preferences').select('*').eq('household_id', hh),
+      this.db.from('combo_dislikes').select('*').eq('household_id', hh),
       this.db.from('meal_wishes').select('*').eq('household_id', hh),
       this.db.from('votes').select('*').eq('household_id', hh).order('created_at'),
       this.db.from('vote_options').select('*').eq('household_id', hh),
@@ -77,6 +79,7 @@ export class SupabaseRepository implements Repository {
       members: (members.data as Member[]) ?? [],
       foods: (foods.data as Food[]) ?? [],
       preferences: preferences.data ?? [],
+      comboDislikes: comboDislikes.data ?? [],
       wishes: wishes.data ?? [],
       votes: (votes.data as Vote[]) ?? [],
       voteOptions: (voteOptions.data as VoteOption[]) ?? [],
@@ -130,6 +133,19 @@ export class SupabaseRepository implements Repository {
           food_id: foodId,
           preference: pref,
         }),
+      )
+    }
+  }
+
+  async setComboDislike(memberId: string, signature: string, on: boolean): Promise<void> {
+    await this.db
+      .from('combo_dislikes')
+      .delete()
+      .eq('member_id', memberId)
+      .eq('signature', signature)
+    if (on) {
+      await this.db.from('combo_dislikes').insert(
+        this.stamp({ id: newId('dislike'), member_id: memberId, signature }),
       )
     }
   }

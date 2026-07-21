@@ -273,6 +273,7 @@ export function buildSeedData(): AppData {
     // No preferences / history / spending yet — these fill in as the household
     // uses the app. Only the food library is pre-seeded.
     preferences: [],
+    comboDislikes: [],
     wishes: [],
     votes: [],
     voteOptions: [],

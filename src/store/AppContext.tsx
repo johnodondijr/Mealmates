@@ -72,6 +72,9 @@ interface AppContextValue {
     memberId?: string,
   ) => Promise<void>
 
+  // "Don't suggest this combo to me again" (per current member). on=false undoes.
+  setComboDislike: (signature: string, on: boolean) => Promise<void>
+
   // wishes ("I want this today")
   setWish: (foodId: string, on: boolean, memberId?: string) => Promise<void>
   clearWishes: (wishedOn: string) => Promise<void>
@@ -292,6 +295,9 @@ function AppProviderInner({ children }: { children: ReactNode }) {
       setPreference: withReload(
         (foodId: string, pref: Preference | null, memberId?: string) =>
           repo.setPreference(memberId ?? currentMemberId, foodId, pref),
+      ),
+      setComboDislike: withReload((signature: string, on: boolean) =>
+        repo.setComboDislike(currentMemberId, signature, on),
       ),
       setWish: withReload((foodId: string, on: boolean, memberId?: string) =>
         repo.setWish(memberId ?? currentMemberId, foodId, todayISO(), on),

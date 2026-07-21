@@ -38,6 +38,7 @@ const LEGACY_COMBINED = new Set(['food_tea___bread', 'food_eggs___toast'])
 function migrate(data: AppData): AppData {
   data.wishes ??= []
   data.preferences ??= []
+  data.comboDislikes ??= []
   data.votes ??= []
   data.voteOptions ??= []
   data.ballots ??= []
@@ -217,6 +218,18 @@ export class LocalRepository implements Repository {
           food_id: foodId,
           preference: pref,
         })
+      }
+    })
+  }
+
+  async setComboDislike(memberId: string, signature: string, on: boolean): Promise<void> {
+    this.mutate((d) => {
+      d.comboDislikes ??= []
+      d.comboDislikes = d.comboDislikes.filter(
+        (x) => !(x.member_id === memberId && x.signature === signature),
+      )
+      if (on) {
+        d.comboDislikes.push({ id: newId('dislike'), member_id: memberId, signature })
       }
     })
   }

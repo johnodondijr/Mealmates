@@ -90,6 +90,17 @@ create table if not exists public.food_preferences (
   unique (member_id, food_id)
 );
 
+-- ---------- combo_dislikes (per-member "not this combo") ----------
+create table if not exists public.combo_dislikes (
+  id text primary key,
+  household_id text references public.households(id) on delete cascade,
+  member_id text not null references public.members(id) on delete cascade,
+  signature text not null,
+  created_at timestamptz not null default now(),
+  unique (member_id, signature)
+);
+create index if not exists idx_combo_dislikes_hh on public.combo_dislikes(household_id);
+
 -- ---------- meal_wishes ("I want this today") ----------
 create table if not exists public.meal_wishes (
   id text primary key,
@@ -215,8 +226,8 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'households','members','foods','food_preferences','meal_wishes','votes',
-    'vote_options','vote_ballots','meals_eaten','expenses','settings','join_requests'
+    'households','members','foods','food_preferences','combo_dislikes','meal_wishes',
+    'votes','vote_options','vote_ballots','meals_eaten','expenses','settings','join_requests'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);

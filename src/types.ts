@@ -62,6 +62,15 @@ export interface FoodPreference {
   preference: Preference
 }
 
+// A member saying "don't suggest THIS exact combo to me again". The signature
+// is `baseId|proteinId|vegId` (see comboSignature). Personal to the member —
+// the same combo can still be suggested to everyone else.
+export interface ComboDislike {
+  id: string
+  member_id: string
+  signature: string
+}
+
 export interface Combo {
   base?: Food
   protein?: Food
@@ -194,6 +203,7 @@ export interface AppData {
   members: Member[]
   foods: Food[]
   preferences: FoodPreference[]
+  comboDislikes: ComboDislike[]
   wishes: MealWish[]
   votes: Vote[]
   voteOptions: VoteOption[]
