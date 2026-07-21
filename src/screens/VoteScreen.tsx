@@ -25,7 +25,7 @@ export function VoteScreen() {
     <div className="px-4 pb-4">
       <ScreenHeader
         title="Meal Votes"
-        subtitle="Pass the phone or vote on your own device — live."
+        subtitle="Put a few meals up — everyone votes from their phone, live."
       />
 
       <Leaderboard />

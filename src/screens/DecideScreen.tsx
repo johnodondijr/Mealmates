@@ -306,9 +306,9 @@ export function DecideScreen() {
 
       {/* Hero */}
       <ScreenHeader
-        title="What are we"
-        muted="eating today?"
-        subtitle={`Hey ${currentMember?.name} — let MealMates pick for you. Prefer to choose? Build a plate in Foods.`}
+        title="What's for"
+        muted={`${SLOTS.find((s) => s.id === slot)?.label.toLowerCase() ?? slot}?`}
+        subtitle={`Hey ${currentMember?.name}! Tap Spin and I'll pick a balanced meal — or build your own in Foods.`}
       />
 
       {/* First-run tip */}
