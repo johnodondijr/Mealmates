@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { RefreshCw, Sparkles, Trash2, Wand2 } from 'lucide-react'
+import { RefreshCw, Shuffle, Sparkles, Trash2, Wand2 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import type { MealSlot, PlannedMeal, ScoredCombo } from '../types'
 import { ScreenHeader } from '../components/ui/ScreenHeader'
@@ -52,6 +52,11 @@ export function PlanScreen() {
   const planFor = (iso: string) =>
     data.plannedMeals.find((p) => p.plan_date === iso && p.slot === slot)
 
+  const plannedCount = useMemo(
+    () => data.plannedMeals.filter((p) => p.slot === slot).length,
+    [data.plannedMeals, slot],
+  )
+
   const dislikeSigs = useMemo(
     () => data.comboDislikes.map((x) => x.signature),
     [data.comboDislikes],
@@ -65,6 +70,9 @@ export function PlanScreen() {
       avoidSignatures: avoid,
       dislikedSignatures: dislikeSigs,
     })
+
+  const plannedSig = (p: PlannedMeal) =>
+    `${p.base_id ?? ''}|${p.protein_id ?? ''}|${p.veg_id ?? ''}`
 
   const save = async (iso: string, c: ScoredCombo) => {
     const meal: PlannedMeal = {
@@ -81,19 +89,55 @@ export function PlanScreen() {
     await setPlannedMeal(meal)
   }
 
-  // Fill every empty day (for this slot) with a distinct suggestion.
-  const autoPlan = async () => {
+  // Plan the week so no two days feel the same. Each day avoids every earlier
+  // day's exact combo AND deprioritises the last two days' components (base,
+  // protein, veg) — so the same protein won't land on back-to-back days — and
+  // is required to differ from the day before in at least two slots.
+  //   overwrite=false → fill empty days only (existing plans stay, but still
+  //     shape what follows). overwrite=true → reshuffle the whole week.
+  const runPlan = async (overwrite: boolean) => {
+    if (autoBusy) return
     setAutoBusy(true)
-    const used: string[] = [...dislikeSigs]
+    const usedSigs = [...dislikeSigs]
+    let windows: string[][] = [] // food ids from the last couple of days
+    let prev: { base?: string | null; protein?: string | null; veg?: string | null } | undefined
+
+    const remember = (ids: string[]) => {
+      windows = [ids, ...windows].slice(0, 2)
+    }
+
     for (const day of days) {
-      if (planFor(day.iso)) continue
-      const c = spin(used)
+      const existing = planFor(day.iso)
+      if (existing && !overwrite) {
+        // Keep it, but let it steer the next day away from repeats.
+        usedSigs.push(plannedSig(existing))
+        remember(
+          [existing.base_id, existing.protein_id, existing.veg_id].filter(Boolean) as string[],
+        )
+        prev = { base: existing.base_id, protein: existing.protein_id, veg: existing.veg_id }
+        continue
+      }
+      const c = buildCombo(data, {
+        budgetMode: data.settings.budget_mode,
+        presentMemberIds: data.members.map((m) => m.id),
+        slot,
+        avoidSignatures: usedSigs,
+        dislikedSignatures: dislikeSigs,
+        deprioritizeIds: windows.flat(),
+        previous: prev,
+      })
       if (!comboLabel(c)) continue
-      used.push(comboSignature(c))
+      usedSigs.push(comboSignature(c))
+      const ids = [c.base?.id, c.protein?.id, c.veg?.id].filter(Boolean) as string[]
+      remember(ids)
+      prev = { base: c.base?.id ?? null, protein: c.protein?.id ?? null, veg: c.veg?.id ?? null }
       await save(day.iso, c)
     }
     setAutoBusy(false)
   }
+
+  const autoPlan = () => runPlan(false)
+  const reshuffle = () => runPlan(true)
 
   const emojisFor = (p: PlannedMeal) =>
     [p.base_id, p.protein_id, p.veg_id]
@@ -169,6 +213,19 @@ export function PlanScreen() {
           )
         })}
       </div>
+
+      {/* Reshuffle — swap the whole week for a fresh, still-varied set */}
+      {plannedCount > 0 && (
+        <div className="mt-3">
+          <Button variant="ghost" fullWidth onClick={reshuffle} disabled={autoBusy}>
+            <Shuffle size={17} />
+            {autoBusy ? 'Reshuffling…' : 'Reshuffle the whole week'}
+          </Button>
+          <p className="mt-1.5 text-center text-[0.72rem] font-medium text-charcoal-800/45 dark:text-cream/40">
+            Don't love these? Get a fresh set for every day.
+          </p>
+        </div>
+      )}
 
       <AnimatePresence>
         {editing && (
