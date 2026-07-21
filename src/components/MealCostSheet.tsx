@@ -137,7 +137,7 @@ export function MealCostSheet({
       <button
         onClick={skip}
         disabled={saving}
-        className="mt-2 w-full py-2 text-sm font-semibold text-charcoal-800/50 disabled:opacity-50 dark:text-cream/45"
+        className="mt-2 w-full rounded-2xl bg-charcoal-900/[0.04] py-3 text-sm font-bold text-charcoal-800/60 ring-1 ring-charcoal-900/[0.06] transition-colors active:scale-[0.99] disabled:opacity-50 dark:bg-white/[0.05] dark:text-cream/55 dark:ring-white/[0.08]"
       >
         Skip — just log it (use the estimate)
       </button>
