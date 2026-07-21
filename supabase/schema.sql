@@ -49,10 +49,12 @@ create table if not exists public.members (
   emoji text not null default '🙂',
   color text not null default '#C4704F',
   auth_id text,
+  diet text[],
   created_at timestamptz not null default now()
 );
 alter table public.members add column if not exists household_id text references public.households(id) on delete cascade;
 alter table public.members add column if not exists auth_id text;
+alter table public.members add column if not exists diet text[];
 create index if not exists idx_members_auth on public.members(auth_id);
 
 -- ---------- foods ----------
@@ -89,6 +91,22 @@ create table if not exists public.food_preferences (
   preference text not null check (preference in ('love','refuse')),
   unique (member_id, food_id)
 );
+
+-- ---------- planned_meals (weekly plan) ----------
+create table if not exists public.planned_meals (
+  id text primary key,
+  household_id text references public.households(id) on delete cascade,
+  plan_date date not null,
+  slot text not null check (slot in ('breakfast','lunch','dinner')),
+  label text not null,
+  base_id text references public.foods(id) on delete set null,
+  protein_id text references public.foods(id) on delete set null,
+  veg_id text references public.foods(id) on delete set null,
+  created_by text references public.members(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (household_id, plan_date, slot)
+);
+create index if not exists idx_planned_meals_hh on public.planned_meals(household_id);
 
 -- ---------- combo_dislikes (per-member "not this combo") ----------
 create table if not exists public.combo_dislikes (
@@ -226,8 +244,9 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'households','members','foods','food_preferences','combo_dislikes','meal_wishes',
-    'votes','vote_options','vote_ballots','meals_eaten','expenses','settings','join_requests'
+    'households','members','foods','food_preferences','combo_dislikes','planned_meals',
+    'meal_wishes','votes','vote_options','vote_ballots','meals_eaten','expenses',
+    'settings','join_requests'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);

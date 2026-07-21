@@ -4,6 +4,7 @@ import type { Member } from '../types'
 import { Sheet } from './ui/Sheet'
 import { Button } from './ui/Button'
 import { cn } from '../lib/cn'
+import { DIET_OPTIONS } from '../lib/diet'
 
 interface MemberEditorProps {
   member: Member | null // null = new
@@ -25,6 +26,10 @@ export function MemberEditor({ member, onClose, makeId }: MemberEditorProps) {
   const [name, setName] = useState(member?.name ?? '')
   const [emoji, setEmoji] = useState(member?.emoji ?? '🦁')
   const [color, setColor] = useState(member?.color ?? COLORS[0])
+  const [diet, setDiet] = useState<string[]>(member?.diet ?? [])
+
+  const toggleDiet = (id: string) =>
+    setDiet((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]))
 
   const save = async () => {
     if (!name.trim()) return
@@ -33,6 +38,7 @@ export function MemberEditor({ member, onClose, makeId }: MemberEditorProps) {
       name: name.trim(),
       emoji,
       color,
+      diet,
       created_at: member?.created_at ?? new Date().toISOString(),
     })
     onClose()
@@ -96,6 +102,32 @@ export function MemberEditor({ member, onClose, makeId }: MemberEditorProps) {
                 aria-label={`Color ${c}`}
               />
             ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-1.5 font-display text-xs font-bold uppercase tracking-wide text-charcoal-800/50 dark:text-cream/40">
+            Diet (never suggest these)
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {DIET_OPTIONS.map((d) => {
+              const on = diet.includes(d.id)
+              return (
+                <button
+                  key={d.id}
+                  onClick={() => toggleDiet(d.id)}
+                  aria-pressed={on}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 font-display text-sm font-bold transition-colors',
+                    on
+                      ? 'bg-paprika-500 text-white shadow-pop'
+                      : 'bg-white text-charcoal-800 ring-1 ring-charcoal-900/[0.06] dark:bg-charcoal-800 dark:text-cream dark:ring-white/[0.08]',
+                  )}
+                >
+                  {d.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 

@@ -274,6 +274,7 @@ export function buildSeedData(): AppData {
     // uses the app. Only the food library is pre-seeded.
     preferences: [],
     comboDislikes: [],
+    plannedMeals: [],
     wishes: [],
     votes: [],
     voteOptions: [],

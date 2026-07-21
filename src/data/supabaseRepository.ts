@@ -7,6 +7,7 @@ import type {
   Household,
   MealEaten,
   Member,
+  PlannedMeal,
   Preference,
   Settings,
   Vote,
@@ -38,6 +39,7 @@ export class SupabaseRepository implements Repository {
       foods,
       preferences,
       comboDislikes,
+      plannedMeals,
       wishes,
       votes,
       voteOptions,
@@ -50,6 +52,7 @@ export class SupabaseRepository implements Repository {
       this.db.from('foods').select('*').order('created_at'),
       this.db.from('food_preferences').select('*').eq('household_id', hh),
       this.db.from('combo_dislikes').select('*').eq('household_id', hh),
+      this.db.from('planned_meals').select('*').eq('household_id', hh),
       this.db.from('meal_wishes').select('*').eq('household_id', hh),
       this.db.from('votes').select('*').eq('household_id', hh).order('created_at'),
       this.db.from('vote_options').select('*').eq('household_id', hh),
@@ -80,6 +83,7 @@ export class SupabaseRepository implements Repository {
       foods: (foods.data as Food[]) ?? [],
       preferences: preferences.data ?? [],
       comboDislikes: comboDislikes.data ?? [],
+      plannedMeals: (plannedMeals.data as PlannedMeal[]) ?? [],
       wishes: wishes.data ?? [],
       votes: (votes.data as Vote[]) ?? [],
       voteOptions: (voteOptions.data as VoteOption[]) ?? [],
@@ -148,6 +152,24 @@ export class SupabaseRepository implements Repository {
         this.stamp({ id: newId('dislike'), member_id: memberId, signature }),
       )
     }
+  }
+
+  async setPlannedMeal(meal: PlannedMeal): Promise<void> {
+    await this.db
+      .from('planned_meals')
+      .delete()
+      .eq('household_id', this.householdId)
+      .eq('plan_date', meal.plan_date)
+      .eq('slot', meal.slot)
+    await this.db.from('planned_meals').insert(this.stamp(meal))
+  }
+
+  async removePlannedMeal(id: string): Promise<void> {
+    await this.db
+      .from('planned_meals')
+      .delete()
+      .eq('id', id)
+      .eq('household_id', this.householdId)
   }
 
   async setWish(

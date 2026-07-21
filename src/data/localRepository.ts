@@ -39,6 +39,7 @@ function migrate(data: AppData): AppData {
   data.wishes ??= []
   data.preferences ??= []
   data.comboDislikes ??= []
+  data.plannedMeals ??= []
   data.votes ??= []
   data.voteOptions ??= []
   data.ballots ??= []
@@ -231,6 +232,23 @@ export class LocalRepository implements Repository {
       if (on) {
         d.comboDislikes.push({ id: newId('dislike'), member_id: memberId, signature })
       }
+    })
+  }
+
+  async setPlannedMeal(meal: import('../types').PlannedMeal): Promise<void> {
+    this.mutate((d) => {
+      d.plannedMeals ??= []
+      // One meal per day + slot — replace any existing.
+      d.plannedMeals = d.plannedMeals.filter(
+        (p) => !(p.plan_date === meal.plan_date && p.slot === meal.slot),
+      )
+      d.plannedMeals.push(meal)
+    })
+  }
+
+  async removePlannedMeal(id: string): Promise<void> {
+    this.mutate((d) => {
+      d.plannedMeals = (d.plannedMeals ?? []).filter((p) => p.id !== id)
     })
   }
 

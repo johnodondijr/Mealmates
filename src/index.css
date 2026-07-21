@@ -20,6 +20,21 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Keyboard focus: a clear, on-brand ring for anyone navigating without a
+   pointer. Mouse/touch clicks don't trigger :focus-visible, so it stays clean. */
+:focus-visible {
+  outline: 2px solid theme('colors.paprika.500');
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid theme('colors.paprika.500');
+  outline-offset: 2px;
+}
+
 @layer base {
   h1,
   h2,

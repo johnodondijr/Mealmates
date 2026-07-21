@@ -22,6 +22,9 @@ export interface Member {
   name: string
   emoji: string
   color: string // hex
+  // Dietary restrictions (preset ids from lib/diet). Foods ruled out by these
+  // are never suggested when this member is eating.
+  diet?: string[] | null
   auth_id?: string | null // Supabase Auth user id (for row-level security)
   created_at: string
 }
@@ -136,6 +139,19 @@ export interface MealEaten {
   created_at: string
 }
 
+// A meal planned for a specific day + slot (the weekly plan).
+export interface PlannedMeal {
+  id: string
+  plan_date: string // ISO yyyy-mm-dd
+  slot: MealSlot
+  label: string
+  base_id: string | null
+  protein_id: string | null
+  veg_id: string | null
+  created_by: string
+  created_at: string
+}
+
 // A member's "I want to eat this today" pick.
 export interface MealWish {
   id: string
@@ -204,6 +220,7 @@ export interface AppData {
   foods: Food[]
   preferences: FoodPreference[]
   comboDislikes: ComboDislike[]
+  plannedMeals: PlannedMeal[]
   wishes: MealWish[]
   votes: Vote[]
   voteOptions: VoteOption[]

@@ -4,6 +4,7 @@ import type {
   Food,
   MealEaten,
   Member,
+  PlannedMeal,
   Preference,
   Settings,
   Vote,
@@ -35,6 +36,10 @@ export interface Repository {
 
   // Per-member "don't suggest this exact combo to me again". on=false undoes it.
   setComboDislike(memberId: string, signature: string, on: boolean): Promise<void>
+
+  // Weekly plan: set (upsert) or clear the meal planned for a day + slot.
+  setPlannedMeal(meal: PlannedMeal): Promise<void>
+  removePlannedMeal(id: string): Promise<void>
 
   // "I want to eat this today" pick. on=false removes it.
   setWish(

@@ -7,6 +7,7 @@ import type {
   ScoredCombo,
 } from '../types'
 import { FOOD_TAGS } from '../data/seed'
+import { dietBlockedFoodIds } from '../lib/diet'
 import { daysSince, todayISO } from '../lib/format'
 
 // Which food categories make up a meal for each slot. Breakfast is a
@@ -212,6 +213,19 @@ function lastEatenIndex(data: AppData): Map<string, string> {
   return idx
 }
 
+// How many times each food has been part of a logged meal — the household's
+// revealed-preference signal for what it actually enjoys.
+function eatenCountIndex(data: AppData): Map<string, number> {
+  const idx = new Map<string, number>()
+  for (const m of data.meals) {
+    for (const id of [m.base_id, m.protein_id, m.veg_id]) {
+      if (!id) continue
+      idx.set(id, (idx.get(id) ?? 0) + 1)
+    }
+  }
+  return idx
+}
+
 interface FoodScore {
   food: Food
   score: number
@@ -223,6 +237,7 @@ function scoreFood(
   food: Food,
   pref: PrefIndex,
   lastEaten: Map<string, string>,
+  popularity: Map<string, number>,
   opts: SuggestOptions,
 ): FoodScore {
   let score = 5
@@ -248,6 +263,14 @@ function scoreFood(
   if (loves > 0) {
     score += loves * 1.2
     if (loves >= 2) reasons.push(`${loves} of you ❤️ ${food.name}`)
+  }
+
+  // (c2) Popularity — lean toward what the household actually eats. Capped so
+  // it nudges favourites up without crowding out variety.
+  const eaten = popularity.get(food.id) ?? 0
+  if (eaten > 0) {
+    score += Math.min(eaten * 0.35, 1.8)
+    if (eaten >= 5) reasons.push(`${food.name} is a household favourite 😋`)
   }
 
   // Refusals among present members.
@@ -318,6 +341,7 @@ function moistureScore(c: {
 export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
+  const popularity = eatenCountIndex(data)
 
   // Never re-suggest a combo already eaten TODAY (any slot), a recent spin, or
   // one a present member has permanently disliked.
@@ -335,7 +359,7 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   const candidates: ScoredCombo[] = []
   const bySig = new Map<string, ScoredCombo>()
   for (let i = 0; i < 32; i++) {
-    const c = generateCombo(data, opts, pref, lastEaten)
+    const c = generateCombo(data, opts, pref, lastEaten, popularity)
     const sig = comboSignature(c)
     const { score: moisture, reason } = moistureScore(c)
     c.score += moisture
@@ -399,6 +423,7 @@ export function rerollComponent(
 
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
+  const popularity = eatenCountIndex(data)
   const currentFood = [current.base, current.protein, current.veg][index]
   const exclude = new Set([currentFood?.id].filter(Boolean) as string[])
 
@@ -411,10 +436,17 @@ export function rerollComponent(
   const kept = [current.base, current.protein, current.veg].filter(
     (_, i) => i !== index,
   )
+  const dietBlocked = dietBlockedFoodIds(data.members, data.foods, opts.presentMemberIds)
 
   const scores = data.foods
-    .filter((f) => f.category === cat && f.suggestable !== false && f.available !== false)
-    .map((f) => scoreFood(f, pref, lastEaten, opts))
+    .filter(
+      (f) =>
+        f.category === cat &&
+        f.suggestable !== false &&
+        f.available !== false &&
+        !dietBlocked.has(f.id),
+    )
+    .map((f) => scoreFood(f, pref, lastEaten, popularity, opts))
     .map((s) => ({
       ...s,
       score:
@@ -431,17 +463,23 @@ function generateCombo(
   opts: SuggestOptions,
   pref: PrefIndex,
   lastEaten: Map<string, string>,
+  popularity: Map<string, number>,
 ): ScoredCombo {
   const exclude = new Set(opts.excludeIds ?? [])
   const slot = opts.slot ?? 'dinner'
   const cats = SLOT_CATEGORIES[slot]
+  const dietBlocked = dietBlockedFoodIds(data.members, data.foods, opts.presentMemberIds)
 
   const byCat = (cat: Food['category']) =>
     data.foods
       .filter(
-        (f) => f.category === cat && f.suggestable !== false && f.available !== false,
+        (f) =>
+          f.category === cat &&
+          f.suggestable !== false &&
+          f.available !== false &&
+          !dietBlocked.has(f.id),
       )
-      .map((f) => scoreFood(f, pref, lastEaten, opts))
+      .map((f) => scoreFood(f, pref, lastEaten, popularity, opts))
 
   // Slot 1 (base for lunch/dinner, drink for breakfast).
   const first = pickWeighted(byCat(cats[0]), exclude)

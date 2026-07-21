@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AppHeader } from './components/AppHeader'
 import { BottomNav, type Tab } from './components/BottomNav'
 import { DecideScreen } from './screens/DecideScreen'
+import { PlanScreen } from './screens/PlanScreen'
 import { VoteScreen } from './screens/VoteScreen'
 import { FoodsScreen } from './screens/FoodsScreen'
 import { MoneyScreen } from './screens/MoneyScreen'
@@ -15,6 +16,7 @@ import { useApp } from './store/AppContext'
 
 const SCREENS: Record<Tab, () => JSX.Element> = {
   decide: DecideScreen,
+  plan: PlanScreen,
   vote: VoteScreen,
   foods: FoodsScreen,
   money: MoneyScreen,

@@ -19,7 +19,8 @@ import { SlotMachine, type ReelSpec } from '../components/SlotMachine'
 import { Confetti } from '../components/Confetti'
 import { MealCostSheet } from '../components/MealCostSheet'
 import { foodAvgCost } from '../engine/stats'
-import { formatKES } from '../lib/format'
+import { dietBlockedFoodIds } from '../lib/diet'
+import { formatKES, todayISO } from '../lib/format'
 import { cn } from '../lib/cn'
 import type { Food, MealCost } from '../types'
 
@@ -128,8 +129,18 @@ export function DecideScreen() {
       .filter(Boolean)
       .join('')
 
-  // Load a past meal into the reveal, as if it had just been spun.
-  const loadMeal = (m: (typeof data.meals)[number]) => {
+  // Today's planned meal for this slot, if the household set one on the Plan tab.
+  const todayPlan = useMemo(
+    () => data.plannedMeals.find((p) => p.plan_date === todayISO() && p.slot === slot),
+    [data.plannedMeals, slot],
+  )
+
+  // Load a stored meal (from history or the weekly plan) into the reveal,
+  // as if it had just been spun.
+  const loadMeal = (
+    m: { base_id: string | null; protein_id: string | null; veg_id: string | null },
+    reason = 'Brought back from your history 🕘',
+  ) => {
     const base = m.base_id ? foodById.get(m.base_id) : undefined
     const protein = m.protein_id ? foodById.get(m.protein_id) : undefined
     const veg = m.veg_id ? foodById.get(m.veg_id) : undefined
@@ -139,7 +150,7 @@ export function DecideScreen() {
       veg,
       score: 0,
       totalCost: (base?.cost ?? 0) + (protein?.cost ?? 0) + (veg?.cost ?? 0),
-      reasons: ['Brought back from your history 🕘'],
+      reasons: [reason],
     })
     setFruit(null)
     setFruitAdded(false)
@@ -151,12 +162,17 @@ export function DecideScreen() {
   // Reels follow the slot: breakfast = Drink + Breakfast, otherwise Base/Protein/Veg.
   const reelPools = useMemo(() => {
     const cats = SLOT_CATEGORIES[slot]
+    const blocked = dietBlockedFoodIds(data.members, data.foods, present)
     return cats.map((cat) =>
       data.foods.filter(
-        (f) => f.category === cat && f.suggestable !== false && f.available !== false,
+        (f) =>
+          f.category === cat &&
+          f.suggestable !== false &&
+          f.available !== false &&
+          !blocked.has(f.id),
       ),
     )
-  }, [data.foods, slot])
+  }, [data.foods, data.members, slot, present])
 
   const reels: ReelSpec[] = useMemo(() => {
     const targets = [combo?.base, combo?.protein, combo?.veg]
@@ -544,6 +560,27 @@ export function DecideScreen() {
           card carries the actions (Spin again / Cook it up). */}
       {!revealed && (
         <div>
+          {/* Today's plan — a one-tap shortcut if the household already planned this slot */}
+          {todayPlan && !spinning && (
+            <button
+              onClick={() => loadMeal(todayPlan, 'From your weekly plan 🗓️')}
+              className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-avocado-50 p-3 text-left ring-1 ring-avocado-300 transition-transform active:scale-[0.99] dark:bg-avocado-500/10 dark:ring-avocado-500/30"
+            >
+              <span className="text-2xl leading-none">🗓️</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-xs font-bold uppercase tracking-wide text-avocado-700 dark:text-avocado-300">
+                  Planned for today
+                </p>
+                <p className="truncate font-display text-sm font-extrabold text-charcoal-900 dark:text-cream">
+                  {todayPlan.label}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-avocado-500 px-3 py-1.5 text-xs font-bold text-white">
+                Use it
+              </span>
+            </button>
+          )}
+
           <Button
             size="lg"
             onClick={() => roll()}

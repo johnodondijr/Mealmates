@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
-import { BarChart3, Dices, ListChecks, Utensils, Wallet } from 'lucide-react'
+import { BarChart3, CalendarDays, Dices, ListChecks, Utensils, Wallet } from 'lucide-react'
 import { cn } from '../lib/cn'
 
-export type Tab = 'decide' | 'vote' | 'foods' | 'money' | 'stats'
+export type Tab = 'decide' | 'plan' | 'vote' | 'foods' | 'money' | 'stats'
 
 const TABS: { id: Tab; label: string; icon: typeof Dices; emoji: string }[] = [
   { id: 'decide', label: 'Decide', icon: Dices, emoji: '🎰' },
+  { id: 'plan', label: 'Plan', icon: CalendarDays, emoji: '🗓️' },
   { id: 'vote', label: 'Vote', icon: ListChecks, emoji: '🗳️' },
   { id: 'foods', label: 'Foods', icon: Utensils, emoji: '🍲' },
   { id: 'money', label: 'Money', icon: Wallet, emoji: '💸' },
@@ -30,6 +31,7 @@ export function BottomNav({ tab, onChange }: BottomNavProps) {
               onClick={() => onChange(t.id)}
               className="relative flex flex-1 flex-col items-center gap-0.5 py-1.5"
               aria-label={t.label}
+              aria-current={active ? 'page' : undefined}
             >
               {active && (
                 <motion.span

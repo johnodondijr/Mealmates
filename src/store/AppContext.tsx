@@ -16,6 +16,7 @@ import type {
   MealCost,
   MealEaten,
   Member,
+  PlannedMeal,
   Preference,
   Settings,
   Vote,
@@ -74,6 +75,10 @@ interface AppContextValue {
 
   // "Don't suggest this combo to me again" (per current member). on=false undoes.
   setComboDislike: (signature: string, on: boolean) => Promise<void>
+
+  // Weekly plan.
+  setPlannedMeal: (meal: PlannedMeal) => Promise<void>
+  removePlannedMeal: (id: string) => Promise<void>
 
   // wishes ("I want this today")
   setWish: (foodId: string, on: boolean, memberId?: string) => Promise<void>
@@ -299,6 +304,8 @@ function AppProviderInner({ children }: { children: ReactNode }) {
       setComboDislike: withReload((signature: string, on: boolean) =>
         repo.setComboDislike(currentMemberId, signature, on),
       ),
+      setPlannedMeal: withReload((m: PlannedMeal) => repo.setPlannedMeal(m)),
+      removePlannedMeal: withReload((id: string) => repo.removePlannedMeal(id)),
       setWish: withReload((foodId: string, on: boolean, memberId?: string) =>
         repo.setWish(memberId ?? currentMemberId, foodId, todayISO(), on),
       ),
