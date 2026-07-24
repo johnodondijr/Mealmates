@@ -1,0 +1,85 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Hoisted to job level so every step's `if:` can read it. Empty unless
+      # the signing secret is configured, which gates the release build.
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      # Build the web app and copy it into the native Android project.
+      - name: Sync web build into Android project
+        run: npm run cap:sync
+        env:
+          # Optional — the app runs on local device storage when unset.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # ── Debug APK (always built; installable via `adb install` / sideload) ──
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mealmates-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # ── Release APK (only when signing secrets are present) ──
+      # Provide these repo secrets to get a signed, Play-Store-ready build:
+      #   ANDROID_KEYSTORE_BASE64  — base64 of your .jks keystore
+      #   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      - name: Decode keystore
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/mealmates.jks
+
+      - name: Build signed release APK
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: android
+        env:
+          MM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pmm.storeFile=mealmates.jks \
+            -Pmm.storePassword="$MM_KEYSTORE_PASSWORD" \
+            -Pmm.keyAlias="$MM_KEY_ALIAS" \
+            -Pmm.keyPassword="$MM_KEY_PASSWORD"
+
+      - name: Upload release APK
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mealmates-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

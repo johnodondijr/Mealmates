@@ -162,6 +162,64 @@ household's admin email and sends the alert via Resend.
    Environment Variables.
 4. Deploy. Build command `npm run build`, output `dist`.
 
+## 📱 Building the Android app (APK)
+
+MealMates ships as a native Android app via [Capacitor](https://capacitorjs.com/),
+which wraps the Vite web build in a thin native shell. The `android/` folder is a
+real Gradle project — the web assets are copied into it by `cap sync`.
+
+### Easiest: let CI build it for you
+
+A GitHub Actions workflow (`.github/workflows/android.yml`) builds the APK on
+every push to `main` (and on `v*` tags, or manually via **Actions → Build
+Android APK → Run workflow**).
+
+1. Open the workflow run → **Artifacts** → download **`mealmates-debug-apk`**.
+2. Copy `app-debug.apk` to your phone and open it (allow "install from unknown
+   sources"), or `adb install app-debug.apk`.
+
+That's a **debug** APK — perfect for sideloading and testing, but not for the
+Play Store. For a **signed release** APK, add these repo secrets and the same
+workflow will also produce `mealmates-release-apk`:
+
+| Secret | What it is |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 mealmates.jks` of your keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | key alias |
+| `ANDROID_KEY_PASSWORD` | key password |
+
+Create a keystore once with:
+
+```bash
+keytool -genkey -v -keystore mealmates.jks -keyalg RSA -keysize 2048 \
+  -validity 10000 -alias mealmates
+```
+
+> Keep `mealmates.jks` **out of git** — store it only as the CI secret above.
+
+### Building locally
+
+Requires the **Android SDK** (via [Android Studio](https://developer.android.com/studio))
+and **JDK 17**.
+
+```bash
+npm install
+npm run android:apk     # builds dist/, cap sync, then assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+
+# Or open the project in Android Studio to run on a device/emulator:
+npm run android:open
+```
+
+Handy scripts: `npm run cap:sync` (rebuild web + copy into Android),
+`npm run android:open` (launch Android Studio).
+
+App identity lives in `capacitor.config.ts` (`appId`, `appName`) and
+`android/app/build.gradle` (`versionCode` / `versionName` — bump these for each
+release). Launcher icons and the splash screen are generated from
+`public/icon-512.png` via `npx @capacitor/assets generate --android`.
+
 ## 🗂️ Schema
 
 `members`, `foods`, `food_preferences`, `votes`, `vote_options`,
