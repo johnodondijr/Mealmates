@@ -27,3 +27,11 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Android / Capacitor
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/captures/
+android/app/release/
