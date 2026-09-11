@@ -13,6 +13,8 @@ import { Onboarding } from './components/Onboarding'
 import { LiveToasts } from './components/LiveToasts'
 import { NavProvider } from './store/NavContext'
 import { useApp } from './store/AppContext'
+import { useTheme } from './store/ThemeContext'
+import { applySystemChrome } from './lib/systemChrome'
 
 const SCREENS: Record<Tab, () => JSX.Element> = {
   decide: DecideScreen,
@@ -28,6 +30,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const reduce = useReducedMotion()
   const Screen = SCREENS[tab]
+  const { theme } = useTheme()
 
   const { data } = useApp()
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -47,14 +50,18 @@ export default function App() {
     }
   }, [data])
 
+  useEffect(() => {
+    applySystemChrome(tab, theme)
+  }, [tab, theme])
+
   return (
     <NavProvider value={{ tab, setTab }}>
-    <div className="min-h-screen bg-cream text-charcoal-900 dark:bg-charcoal-950 dark:text-cream">
+    <div className="min-h-screen text-charcoal-900 transition-colors duration-300 dark:text-cream">
       <LiveToasts />
       <div className="mx-auto flex min-h-screen max-w-md flex-col">
         <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
 
-        <main className="flex-1 pb-28">
+        <main className="flex-1 pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
           <AnimatePresence mode="wait">
             <motion.div
               key={tab}

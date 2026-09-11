@@ -20,7 +20,12 @@ interface BottomNavProps {
 
 export function BottomNav({ tab, onChange }: BottomNavProps) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-charcoal-100 bg-cream/90 backdrop-blur-lg dark:border-charcoal-800 dark:bg-charcoal-900/90 safe-bottom">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-charcoal-100/80 backdrop-blur-xl dark:border-charcoal-800/80 safe-bottom"
+      style={{
+        backgroundColor: 'color-mix(in srgb, var(--app-chrome-bottom) 92%, transparent)',
+      }}
+    >
       <div className="mx-auto flex max-w-md items-stretch justify-around px-2 py-1.5">
         {TABS.map((t) => {
           const active = tab === t.id

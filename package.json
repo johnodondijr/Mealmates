@@ -4,14 +4,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite",
-  "build": "tsc -b && vite build",
-  "preview": "vite preview",
-  "cap:sync": "npm run build && npx cap sync android",
-  "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
-  "android:open": "npm run cap:sync && npx cap open android"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "cap:sync": "npm run build && npx cap sync android",
+    "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
+    "android:open": "npm run cap:sync && npx cap open android"
   },
-
   "dependencies": {
     "@capacitor/android": "^8.4.2",
     "@capacitor/cli": "^8.4.2",
@@ -23,6 +22,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@types/node": "^20.19.43",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",

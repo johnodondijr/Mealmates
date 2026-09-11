@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="540" viewBox="0 0 1800 540" role="img" aria-labelledby="title desc">
+  <title id="title">MealMates logo and wordmark</title>
+  <desc id="desc">A rounded MealMates cooking-pot logo beside a sharp black and green MealMates wordmark.</desc>
+  <defs>
+    <clipPath id="logo-round">
+      <rect x="120" y="90" width="360" height="360" rx="76" ry="76"/>
+    </clipPath>
+  </defs>
+  <rect width="1800" height="540" fill="#EBE7E0"/>
+  <image href="icon-512.png" x="120" y="90" width="360" height="360" clip-path="url(#logo-round)" preserveAspectRatio="xMidYMid slice"/>
+  <text x="570" y="321" font-family="Fredoka, 'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif" font-size="190" font-weight="700" letter-spacing="0">
+    <tspan fill="#22201B">Meal</tspan><tspan fill="#6EA630">Mates</tspan>
+  </text>
+</svg>

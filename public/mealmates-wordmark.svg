@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">MealMates wordmark</title>
+  <desc id="desc">MealMates wordmark in green and charcoal with a warm cream background.</desc>
+  <rect width="1200" height="360" rx="64" fill="#EBE7E0"/>
+  <text x="92" y="216" font-family="Fredoka, 'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif" font-size="154" font-weight="700" letter-spacing="0">
+    <tspan fill="#22201B">Meal</tspan><tspan fill="#6EA630">Mates</tspan>
+  </text>
+</svg>

@@ -32,7 +32,10 @@ export function AppHeader({ onOpenSettings }: AppHeaderProps) {
   const othersLive = onlineMemberIds.filter((id) => id !== currentMemberId).length
 
   return (
-    <header className="sticky top-0 z-20 bg-cream/85 backdrop-blur-lg dark:bg-charcoal-950/85 safe-top">
+    <header
+      className="sticky top-0 z-20 safe-top"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--app-chrome-top) 88%, transparent)' }}
+    >
       <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-paprika-500 text-lg shadow-pop">

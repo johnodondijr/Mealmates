@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: light dark;
+  --app-canvas: #EBE7E0;
+  --app-chrome-top: #EBE7E0;
+  --app-chrome-bottom: #EBE7E0;
 }
 
 html,
@@ -14,10 +17,24 @@ body,
 
 body {
   margin: 0;
+  background: var(--app-canvas);
   font-family: theme('fontFamily.body');
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100%;
+  background:
+    linear-gradient(
+      180deg,
+      var(--app-chrome-top) 0,
+      var(--app-canvas) 12rem,
+      var(--app-canvas) calc(100% - 8rem),
+      var(--app-chrome-bottom) 100%
+    );
+  transition: background 220ms ease, color 220ms ease;
 }
 
 /* Keyboard focus: a clear, on-brand ring for anyone navigating without a
@@ -47,7 +64,7 @@ input:focus-visible,
 
 @layer utilities {
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
   }
   .safe-top {
     padding-top: env(safe-area-inset-top);
