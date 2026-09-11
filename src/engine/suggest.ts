@@ -6,7 +6,7 @@ import type {
   MealSlot,
   ScoredCombo,
 } from '../types'
-import { FOOD_TAGS } from '../data/seed'
+import { FOOD_TAGS, SEED_FOODS } from '../data/seed'
 import { dietBlockedFoodIds } from '../lib/diet'
 import { daysSince, todayISO } from '../lib/format'
 
@@ -26,18 +26,38 @@ export const SLOT_REEL_LABELS: Record<MealSlot, string[]> = {
 }
 
 // ---- Kenyan classic pairing logic ----
-// Keyed by base food id -> protein/veg ids that pair especially well.
-// Higher = better classic pairing.
+// A directed "goes well together" score. Keys are the anchoring item — a base,
+// or a protein for protein→side affinities — and values are the partners that
+// pair especially well (higher = stronger classic). Lookups check both
+// directions (see pairBoost), so each pair only needs to be listed once.
 const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
+  // ===== Base → protein / veg =====
   food_ugali: {
     food_sukuma_wiki: 3,
     food_beef_stew: 3,
     food_managu: 2.5,
     food_terere: 2.5,
+    food_kunde: 2.5,
+    food_mrenda: 2.5,
+    food_pumpkin_leaves: 2,
     food_fried_tilapia: 2.5,
+    food_fish_stew: 2.5,
     food_nyama_choma: 3,
-    food_omena: 2,
+    food_omena: 2.5,
+    food_matumbo: 2,
     food_cabbage: 1.5,
+    food_spinach: 1.5,
+  },
+  // Millet ugali eats like ugali — same sides.
+  food_wimbi_ugali: {
+    food_sukuma_wiki: 3,
+    food_beef_stew: 2.5,
+    food_managu: 2.5,
+    food_terere: 2.5,
+    food_kunde: 2,
+    food_omena: 2.5,
+    food_fried_tilapia: 2,
+    food_nyama_choma: 2,
     food_spinach: 1.5,
   },
   food_chapati: {
@@ -46,13 +66,31 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_beef_stew: 2.5,
     food_chicken_wet_fry_: 2.5,
     food_minced_meat: 2,
+    food_njahi: 2,
+    food_sukuma_wiki: 1.5,
+    food_cabbage: 1.5,
   },
   food_rice: {
     food_beans: 3,
+    food_ndengu: 2.5,
     food_chicken_wet_fry_: 3,
     food_chicken_dry_fry_: 2.5,
     food_beef_stew: 2.5,
-    food_ndengu: 2.5,
+    food_goat_stew: 2,
+    food_kamande_lentils_: 2,
+    food_minji_peas_: 2,
+    food_kachumbari: 2,
+    food_cabbage: 1.5,
+    food_sukuma_wiki: 1.5,
+  },
+  // Coastal coconut rice leans to fish and rich stews.
+  food_coconut_rice: {
+    food_fish_stew: 3,
+    food_fried_tilapia: 2.5,
+    food_beef_stew: 2.5,
+    food_goat_stew: 2.5,
+    food_chicken_wet_fry_: 2.5,
+    food_ndengu: 2,
     food_kachumbari: 2,
   },
   food_spaghetti: {
@@ -65,10 +103,20 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_avocado: 2.5,
     food_kachumbari: 2,
     food_beef_stew: 2,
+    food_sukuma_wiki: 1.5,
+  },
+  // Muthokoi (dehulled maize) eats much like githeri.
+  food_muthokoi: {
+    food_avocado: 2.5,
+    food_kachumbari: 2,
+    food_beef_stew: 2,
+    food_minced_meat: 1.5,
+    food_sukuma_wiki: 1.5,
   },
   food_matoke: {
     food_beef_stew: 2.5,
     food_chicken_wet_fry_: 2.5,
+    food_goat_stew: 2,
   },
   // Mukimo is a soft mash — it wants a light, saucy stew, not dry/fishy sides.
   food_mukimo: {
@@ -81,6 +129,14 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_beef_stew: 2.5,
     food_sausages: 2,
     food_chicken_wet_fry_: 2,
+  },
+  // Plain potatoes as a starch take the same stews as a mash.
+  food_potatoes: {
+    food_beef_stew: 2.5,
+    food_minced_meat: 2,
+    food_chicken_wet_fry_: 2,
+    food_sukuma_wiki: 1.5,
+    food_kachumbari: 1.5,
   },
   // Rich rice dishes go with meat/goat/chicken stews.
   food_biryani: {
@@ -100,12 +156,78 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_boiled_meat: 2.5,
     food_kachumbari: 3, // pilau + kachumbari is the classic
   },
-  food_fries___chips: {
+  food_fries_chips: {
     food_chicken_dry_fry_: 2.5,
     food_sausages: 2,
     food_eggs: 2,
     food_kachumbari: 1.5,
   },
+
+  // ===== Protein → side / veg affinities =====
+  // What a protein especially wants alongside it, independent of the base —
+  // e.g. roast/fried meats and pilau pull hard for kachumbari; omena wants a
+  // traditional leafy green.
+  food_nyama_choma: { food_kachumbari: 3 },
+  food_mutura: { food_kachumbari: 3 },
+  food_pork: { food_kachumbari: 2.5 },
+  food_chicken_dry_fry_: { food_kachumbari: 2.5 },
+  food_fried_tilapia: { food_kachumbari: 2, food_sukuma_wiki: 1.5 },
+  food_fish_stew: { food_sukuma_wiki: 1.5, food_kachumbari: 1.5 },
+  food_beef_stew: { food_sukuma_wiki: 1.5, food_spinach: 1 },
+  food_matumbo: { food_sukuma_wiki: 1.5 },
+  food_omena: { food_managu: 1.5, food_terere: 1.5, food_kunde: 1.5 },
+  food_beans: { food_managu: 1.2, food_terere: 1.2 },
+  food_ndengu: { food_kachumbari: 1.2 },
+}
+
+// Protein "families" so suggestions rotate across kinds of protein — eating
+// beef today and goat tomorrow is still repetitive even though the dish differs.
+const PROTEIN_FAMILY: Record<string, string> = {
+  food_beef_stew: 'red_meat',
+  food_boiled_meat: 'red_meat',
+  food_nyama_choma: 'red_meat',
+  food_minced_meat: 'red_meat',
+  food_goat_stew: 'red_meat',
+  food_pork: 'red_meat',
+  food_matumbo: 'offal',
+  food_liver_maini_: 'offal',
+  food_mutura: 'offal',
+  food_chicken_wet_fry_: 'chicken',
+  food_chicken_dry_fry_: 'chicken',
+  food_kienyeji_chicken: 'chicken',
+  food_fried_tilapia: 'fish',
+  food_fish_stew: 'fish',
+  food_omena: 'fish',
+  food_beans: 'legume',
+  food_ndengu: 'legume',
+  food_kamande_lentils_: 'legume',
+  food_njahi: 'legume',
+  food_minji_peas_: 'legume',
+  food_eggs: 'eggs',
+}
+
+// A directed pairing lookup that works whichever slot is the anchor: a pair is
+// listed once (e.g. base→protein), and we check both directions.
+function pairBoost(a?: Food, b?: Food): number {
+  if (!a || !b) return 0
+  return (CLASSIC_PAIRS[a.id]?.[b.id] ?? 0) + (CLASSIC_PAIRS[b.id]?.[a.id] ?? 0)
+}
+
+// Dev-time guard: catch a pairing/family rule that points at a food id which
+// doesn't exist (a rename or a typo like the old `food_fries___chips`), so the
+// rule silently doing nothing gets surfaced instead of shipping.
+if (import.meta.env.DEV) {
+  const known = new Set(SEED_FOODS.map((f) => f.id))
+  const refs = new Set<string>()
+  for (const [anchor, partners] of Object.entries(CLASSIC_PAIRS)) {
+    refs.add(anchor)
+    for (const partner of Object.keys(partners)) refs.add(partner)
+  }
+  for (const id of Object.keys(PROTEIN_FAMILY)) refs.add(id)
+  const missing = [...refs].filter((id) => !known.has(id))
+  if (missing.length) {
+    console.warn('[MealMates] pairing/family rules reference unknown food ids:', missing)
+  }
 }
 
 // ---- Clash logic ----
@@ -226,6 +348,20 @@ function eatenCountIndex(data: AppData): Map<string, number> {
   return idx
 }
 
+// Most recent day (as daysSince) any protein of each family was eaten, so we
+// can rotate red meat / chicken / fish / legumes across days.
+function proteinFamilyRecency(data: AppData): Map<string, number> {
+  const idx = new Map<string, number>()
+  for (const m of data.meals) {
+    const fam = m.protein_id ? PROTEIN_FAMILY[m.protein_id] : undefined
+    if (!fam) continue
+    const d = daysSince(m.eaten_on)
+    const cur = idx.get(fam)
+    if (cur === undefined || d < cur) idx.set(fam, d)
+  }
+  return idx
+}
+
 interface FoodScore {
   food: Food
   score: number
@@ -238,6 +374,7 @@ function scoreFood(
   pref: PrefIndex,
   lastEaten: Map<string, string>,
   popularity: Map<string, number>,
+  familyRecency: Map<string, number>,
   opts: SuggestOptions,
 ): FoodScore {
   let score = 5
@@ -288,6 +425,18 @@ function scoreFood(
   // Freshness: foods shown in the last few spins get pushed down so the reels
   // keep rotating through the whole library instead of favouring a handful.
   if (opts.deprioritizeIds?.includes(food.id)) score -= 3
+
+  // Rotate protein families: nudge away from the same kind of protein (red
+  // meat / chicken / fish / legume) on back-to-back days, even when the exact
+  // dish differs, so the week doesn't read as "meat every day".
+  const family = PROTEIN_FAMILY[food.id]
+  if (family) {
+    const fd = familyRecency.get(family)
+    if (fd !== undefined) {
+      if (fd <= 1) score -= 2.5
+      else if (fd <= 2) score -= 1.2
+    }
+  }
 
   return { food, score, reasons, refusedBy }
 }
@@ -342,24 +491,35 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
   const popularity = eatenCountIndex(data)
+  const familyRecency = proteinFamilyRecency(data)
 
   // Never re-suggest a combo already eaten TODAY (any slot), a recent spin, or
   // one a present member has permanently disliked.
   const hardAvoid = new Set([...(opts.avoidSignatures ?? []), ...(opts.dislikedSignatures ?? [])])
   const today = todayISO()
-  // Softly avoid combos eaten in the last 2 days so meals space out (~3 days).
-  const softAvoid = new Set<string>()
+  // Graduated penalty for repeating a whole combo recently — strongest for the
+  // last couple of days and tapering out to a week, so the exact same plate
+  // genuinely spaces out instead of reappearing every few days.
+  const comboPenalty = new Map<string, number>()
   for (const m of data.meals) {
+    const sig = mealSignature(m)
+    if (m.eaten_on === today) {
+      hardAvoid.add(sig)
+      continue
+    }
     const d = daysSince(m.eaten_on)
-    if (m.eaten_on === today) hardAvoid.add(mealSignature(m))
-    else if (d >= 1 && d <= 2) softAvoid.add(mealSignature(m))
+    let p = 0
+    if (d <= 2) p = 6
+    else if (d <= 4) p = 3.5
+    else if (d <= 6) p = 1.5
+    if (p > 0) comboPenalty.set(sig, Math.max(comboPenalty.get(sig) ?? 0, p))
   }
 
   // Generate a spread of candidates, then rank by taste + balance + freshness.
   const candidates: ScoredCombo[] = []
   const bySig = new Map<string, ScoredCombo>()
   for (let i = 0; i < 32; i++) {
-    const c = generateCombo(data, opts, pref, lastEaten, popularity)
+    const c = generateCombo(data, opts, pref, lastEaten, popularity, familyRecency)
     const sig = comboSignature(c)
     const { score: moisture, reason } = moistureScore(c)
     c.score += moisture
@@ -367,7 +527,7 @@ export function buildCombo(data: AppData, opts: SuggestOptions): ScoredCombo {
     // pushed right down so they effectively never surface.
     c.score -= comboClash(c) * 2
     if (reason) c.reasons = [...new Set([reason, ...c.reasons])].slice(0, 3)
-    if (softAvoid.has(sig)) c.score -= 6 // eaten recently — push down
+    c.score -= comboPenalty.get(sig) ?? 0 // eaten recently — push down
     if (!bySig.has(sig)) {
       bySig.set(sig, c)
       candidates.push(c)
@@ -424,18 +584,17 @@ export function rerollComponent(
   const pref = indexPreferences(data.preferences)
   const lastEaten = lastEatenIndex(data)
   const popularity = eatenCountIndex(data)
+  const familyRecency = proteinFamilyRecency(data)
   const currentFood = [current.base, current.protein, current.veg][index]
   const exclude = new Set([currentFood?.id].filter(Boolean) as string[])
 
-  // Pair against the kept base (unless we're re-rolling the base itself).
-  const base = index === 0 ? undefined : current.base
-  const pairMap =
-    base && opts.slot !== 'breakfast' ? CLASSIC_PAIRS[base.id] ?? {} : {}
-
-  // The other two slots we're keeping — the swap shouldn't clash with them.
+  // The other two slots we're keeping — the swap should pair well with them and
+  // not clash. pairBoost is direction-agnostic, so it works whether we're
+  // re-rolling the base, protein, or veg.
   const kept = [current.base, current.protein, current.veg].filter(
     (_, i) => i !== index,
   )
+  const usePairs = opts.slot !== 'breakfast'
   const dietBlocked = dietBlockedFoodIds(data.members, data.foods, opts.presentMemberIds)
 
   const scores = data.foods
@@ -446,12 +605,12 @@ export function rerollComponent(
         f.available !== false &&
         !dietBlocked.has(f.id),
     )
-    .map((f) => scoreFood(f, pref, lastEaten, popularity, opts))
+    .map((f) => scoreFood(f, pref, lastEaten, popularity, familyRecency, opts))
     .map((s) => ({
       ...s,
       score:
         s.score +
-        (pairMap[s.food.id] ?? 0) -
+        (usePairs ? kept.reduce((sum, k) => sum + pairBoost(k, s.food), 0) : 0) -
         kept.reduce((sum, k) => sum + pairClash(s.food, k), 0) * 2,
     }))
 
@@ -464,6 +623,7 @@ function generateCombo(
   pref: PrefIndex,
   lastEaten: Map<string, string>,
   popularity: Map<string, number>,
+  familyRecency: Map<string, number>,
 ): ScoredCombo {
   const exclude = new Set(opts.excludeIds ?? [])
   const slot = opts.slot ?? 'dinner'
@@ -479,23 +639,23 @@ function generateCombo(
           f.available !== false &&
           !dietBlocked.has(f.id),
       )
-      .map((f) => scoreFood(f, pref, lastEaten, popularity, opts))
+      .map((f) => scoreFood(f, pref, lastEaten, popularity, familyRecency, opts))
 
   // Slot 1 (base for lunch/dinner, drink for breakfast).
   const first = pickWeighted(byCat(cats[0]), exclude)
 
-  // Classic pairings only apply to the base+protein+veg meals.
-  const pairMap =
-    slot !== 'breakfast' && first ? CLASSIC_PAIRS[first.food.id] ?? {} : {}
-
-  // Boost classic pairings AND penalise clashes against what's already picked,
-  // so a bad combo (two legumes, mash + fish…) rarely forms in the first place.
+  // Boost classic pairings against every slot already picked (so the veg is
+  // pulled by both the base AND the protein), and penalise clashes — so a bad
+  // combo (two legumes, mash + fish…) rarely forms in the first place. Pairings
+  // only apply to base+protein+veg meals, not breakfast.
   const shape = (scores: FoodScore[], kept: (Food | undefined)[]) =>
     scores.map((s) => ({
       ...s,
       score:
         s.score +
-        (pairMap[s.food.id] ?? 0) -
+        (slot === 'breakfast'
+          ? 0
+          : kept.reduce((sum, k) => sum + pairBoost(k, s.food), 0)) -
         kept.reduce((sum, k) => sum + pairClash(s.food, k), 0),
     }))
 
@@ -507,7 +667,7 @@ function generateCombo(
     : null
 
   const reasons: string[] = []
-  if (first && second && pairMap[second.food.id]) {
+  if (first && second && slot !== 'breakfast' && pairBoost(first.food, second.food) > 0) {
     reasons.push(`${first.food.name} + ${second.food.name} is a classic combo ✨`)
   }
   for (const s of [first, second, third]) {
