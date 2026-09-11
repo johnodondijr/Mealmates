@@ -16,6 +16,12 @@ import type {
 } from '../types'
 import { SEED_FOODS } from './seed'
 import { newId } from '../lib/id'
+import { withTimeout } from '../lib/withTimeout'
+
+// A single boot load must never hang the app: if the household's data hasn't
+// come back in this window we reject, so the caller can fall back to local data
+// and retry in the background. Generous enough for a slow mobile connection.
+const LOAD_TIMEOUT_MS = 8000
 
 // Supabase adapter, scoped to one household. The food catalog is shared across
 // the whole project (stable ids keep the pairing engine working); everything
@@ -46,20 +52,24 @@ export class SupabaseRepository implements Repository {
       ballots,
       meals,
       expenses,
-    ] = await Promise.all([
-      this.db.from('households').select('*').eq('id', hh).maybeSingle(),
-      this.db.from('members').select('*').eq('household_id', hh).order('created_at'),
-      this.db.from('foods').select('*').order('created_at'),
-      this.db.from('food_preferences').select('*').eq('household_id', hh),
-      this.db.from('combo_dislikes').select('*').eq('household_id', hh),
-      this.db.from('planned_meals').select('*').eq('household_id', hh),
-      this.db.from('meal_wishes').select('*').eq('household_id', hh),
-      this.db.from('votes').select('*').eq('household_id', hh).order('created_at'),
-      this.db.from('vote_options').select('*').eq('household_id', hh),
-      this.db.from('vote_ballots').select('*').eq('household_id', hh),
-      this.db.from('meals_eaten').select('*').eq('household_id', hh),
-      this.db.from('expenses').select('*').eq('household_id', hh),
-    ])
+    ] = await withTimeout(
+      Promise.all([
+        this.db.from('households').select('*').eq('id', hh).maybeSingle(),
+        this.db.from('members').select('*').eq('household_id', hh).order('created_at'),
+        this.db.from('foods').select('*').order('created_at'),
+        this.db.from('food_preferences').select('*').eq('household_id', hh),
+        this.db.from('combo_dislikes').select('*').eq('household_id', hh),
+        this.db.from('planned_meals').select('*').eq('household_id', hh),
+        this.db.from('meal_wishes').select('*').eq('household_id', hh),
+        this.db.from('votes').select('*').eq('household_id', hh).order('created_at'),
+        this.db.from('vote_options').select('*').eq('household_id', hh),
+        this.db.from('vote_ballots').select('*').eq('household_id', hh),
+        this.db.from('meals_eaten').select('*').eq('household_id', hh),
+        this.db.from('expenses').select('*').eq('household_id', hh),
+      ]),
+      LOAD_TIMEOUT_MS,
+      'data load',
+    )
 
     // The shared catalog is seeded once per project; be defensive on an empty DB.
     if ((foods.data?.length ?? 0) === 0) {

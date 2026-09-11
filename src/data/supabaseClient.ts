@@ -1,4 +1,10 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { withTimeout } from '../lib/withTimeout'
+
+// Anonymous sign-in is best-effort and must never block boot. If it can't
+// settle in this window (e.g. the WebView can't reach the auth endpoint), we
+// carry on without a session — permissive RLS still lets the app work.
+const AUTH_TIMEOUT_MS = 6000
 
 // Supabase can be configured two ways:
 //  1. Build-time env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) — good
@@ -91,10 +97,16 @@ export function ensureAuth(): Promise<void> {
   if (!authReady) {
     authReady = (async () => {
       try {
-        const { data } = await supabase.auth.getSession()
-        if (!data.session) await supabase.auth.signInAnonymously()
+        await withTimeout(
+          (async () => {
+            const { data } = await supabase.auth.getSession()
+            if (!data.session) await supabase.auth.signInAnonymously()
+          })(),
+          AUTH_TIMEOUT_MS,
+          'auth',
+        )
       } catch {
-        /* anonymous sign-in not enabled — carry on without auth */
+        /* anonymous sign-in not enabled or unreachable — carry on without auth */
       }
     })()
   }

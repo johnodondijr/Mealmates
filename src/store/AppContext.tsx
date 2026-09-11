@@ -23,9 +23,8 @@ import type {
   VoteOption,
 } from '../types'
 import { createRepository, usingSupabase, needsHousehold, type Repository } from '../data'
+import { LocalRepository } from '../data/localRepository'
 import {
-  getStoredSupabaseConfig,
-  setSupabaseConfig,
   getHouseholdId,
   setHouseholdId,
   supabase,
@@ -106,6 +105,14 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 const CURRENT_MEMBER_KEY = 'mealmates.currentMember'
 
+// How long to show the boot screen while waiting for the live backend before
+// falling back to local data for an instant first paint. Short enough that a
+// stalled network never looks like a frozen app; long enough that a healthy
+// connection loads real household data with no local-data flash.
+const BOOT_PAINT_MS = 2500
+// How often to retry the live load in the background until the first sync lands.
+const BOOT_RETRY_MS = 6000
+
 // Gate wrapper: when Supabase is configured but this device hasn't joined a
 // household yet, show the create/join screen instead of the app. Kept in a
 // thin outer component so the real provider's hooks always run in the same
@@ -126,34 +133,71 @@ function AppProviderInner({ children }: { children: ReactNode }) {
     () => localStorage.getItem(CURRENT_MEMBER_KEY) ?? 'member_1',
   )
 
+  // True once we've loaded from the real (Supabase) backend at least once. Until
+  // then the background boot-retry keeps trying; after that, realtime keeps the
+  // data fresh so the retry can stop.
+  const syncedRef = useRef(false)
+
   const reload = useCallback(async () => {
     try {
       // Ensure an auth session exists before reading, so row-level security can
-      // scope the data once strict policies are enabled.
+      // scope the data once strict policies are enabled. (Time-limited so it
+      // can't stall boot.)
       await ensureAuth()
       const fresh = await repo.loadAll()
+      syncedRef.current = true
       setData(fresh)
     } catch (e) {
       console.error('MealMates: failed to load data', e)
-      // Safety net: if a runtime Supabase connection is broken, drop it and
-      // reload once so the app falls back to local storage instead of getting
-      // stuck on the boot screen. Guarded so it can't loop.
-      if (
-        usingSupabase &&
-        getStoredSupabaseConfig() &&
-        !sessionStorage.getItem('mm.supabaseFallback')
-      ) {
-        sessionStorage.setItem('mm.supabaseFallback', '1')
-        setSupabaseConfig(null)
-        window.location.reload()
+      // Never get stuck on the boot screen: fall back to local data so the app
+      // is immediately usable offline. Supabase is retried in the background
+      // (see the boot effect below) and realtime swaps in live household data
+      // the moment the backend is reachable. Only fills in if nothing has
+      // loaded yet — a later failed retry must not clobber live data.
+      try {
+        const local = await new LocalRepository().loadAll()
+        setData((prev) => prev ?? local)
+      } catch {
+        /* localStorage unavailable too — the boot-paint timer is the last resort */
       }
     }
   }, [repo])
 
   useEffect(() => {
+    let cancelled = false
+
+    // Load the real backend (Supabase when configured) and subscribe to live
+    // updates.
     reload()
     const unsub = repo.subscribe(reload)
-    return unsub
+
+    // Instant-paint safety net: give the live load a short head start, then —
+    // if it still hasn't produced data — render local data so the user never
+    // sits on the bouncing-pot boot screen waiting for the network. No-ops once
+    // any data (live or local) is on screen.
+    const paintTimer = setTimeout(() => {
+      if (cancelled || syncedRef.current) return
+      new LocalRepository()
+        .loadAll()
+        .then((local) => {
+          if (!cancelled) setData((prev) => prev ?? local)
+        })
+        .catch(() => {})
+    }, BOOT_PAINT_MS)
+
+    // Background retry: if the first live load didn't succeed (offline / slow /
+    // stalled WebView request), keep trying so household data appears as soon
+    // as the network is back. Stops once we've synced at least once.
+    const retry = setInterval(() => {
+      if (!cancelled && usingSupabase && !syncedRef.current) reload()
+    }, BOOT_RETRY_MS)
+
+    return () => {
+      cancelled = true
+      clearTimeout(paintTimer)
+      clearInterval(retry)
+      unsub()
+    }
   }, [repo, reload])
 
   const setCurrentMemberId = useCallback((id: string) => {
