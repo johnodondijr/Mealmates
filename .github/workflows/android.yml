@@ -9,20 +9,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Needed so the release step can create a GitHub Release on tag pushes.
+    permissions:
+      contents: write
     env:
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -77,3 +80,23 @@ jobs:
         with:
           name: mealmates-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+
+      # --- Publish a GitHub Release with the APK attached (tag pushes only) ---
+      # Push a version tag to cut a release, e.g:  git tag v1.0.1 && git push origin v1.0.1
+      # The signed release APK (falling back to debug if no keystore) is uploaded
+      # under a versioned name, giving a permanent, login-free download link at
+      # github.com/<owner>/Mealmates/releases/latest.
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            APK="android/app/build/outputs/apk/release/app-release.apk"
+          else
+            APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            --title "MealMates $GITHUB_REF_NAME" \
+            --generate-notes \
+            "${APK}#MealMates-${GITHUB_REF_NAME}.apk"
