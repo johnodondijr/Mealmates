@@ -55,8 +55,12 @@ export const TEXTURE_MAP: Record<string, Texture> = {
   food_groundnuts: 'dry',
   food_wimbi_ugali: 'dry',
   food_boiled_maize: 'dry',
+  food_irio: 'dry',
+  food_cassava: 'dry',
   // saucy proteins
   food_beef_stew: 'saucy',
+  food_beef_fry: 'saucy',
+  food_samaki_wa_kupaka: 'saucy',
   food_chicken_wet_fry_: 'saucy',
   food_ndengu: 'saucy',
   food_beans: 'saucy',
@@ -72,6 +76,7 @@ export const TEXTURE_MAP: Record<string, Texture> = {
   food_kienyeji_chicken: 'saucy',
   // dry proteins
   food_chicken_dry_fry_: 'dry',
+  food_kuku_choma: 'dry',
   food_fried_tilapia: 'dry',
   food_nyama_choma: 'dry',
   food_sausages: 'dry',
@@ -115,6 +120,7 @@ export const FOOD_TAGS: Record<string, string[]> = {
   food_roasted_maize: ['maize'],
   // soft mashes
   food_mukimo: ['mash'],
+  food_irio: ['mash'],
   food_mashed_potatoes: ['mash'],
   // dry / strong fish
   food_omena: ['fishy'],
@@ -129,6 +135,7 @@ export const SEED_FOODS: Food[] = [
   food('Chapati', 'base', '🫓', 80, 'Hard', 45),
   food('Spaghetti', 'base', '🍝', 90, 'Easy', 20),
   food('Mukimo', 'base', '🥔', 100, 'Medium', 40),
+  food('Irio', 'base', '🥔', 100, 'Medium', 40),
   food('Matoke', 'base', '🍌', 90, 'Medium', 40),
   food('Mashed Potatoes', 'base', '🥔', 100, 'Medium', 35),
   food('Potatoes', 'base', '🥔', 80, 'Easy', 25),
@@ -148,7 +155,9 @@ export const SEED_FOODS: Food[] = [
   food('Boiled Meat', 'protein', '🥩', 250, 'Medium', 60),
   food('Chicken (Wet Fry)', 'protein', '🍗', 350, 'Hard', 50),
   food('Chicken (Dry Fry)', 'protein', '🍗', 350, 'Hard', 55),
+  food('Kuku Choma', 'protein', '🍗', 450, 'Hard', 60),
   food('Kienyeji Chicken', 'protein', '🐓', 500, 'Hard', 90),
+  food('Beef Fry', 'protein', '🥩', 260, 'Medium', 40),
   food('Goat Stew', 'protein', '🍖', 350, 'Hard', 70),
   food('Pork', 'protein', '🥓', 300, 'Medium', 40),
   food('Nyama Choma', 'protein', '🍖', 400, 'Hard', 60),
@@ -157,6 +166,7 @@ export const SEED_FOODS: Food[] = [
   food('Liver (Maini)', 'protein', '🫀', 200, 'Medium', 25),
   food('Fried Tilapia', 'protein', '🐟', 300, 'Medium', 30),
   food('Fish Stew', 'protein', '🐟', 300, 'Medium', 40),
+  food('Samaki wa Kupaka', 'protein', '🐟', 350, 'Hard', 50),
   food('Omena', 'protein', '🐟', 120, 'Easy', 20),
   food('Eggs', 'protein', '🥚', 60, 'Easy', 10),
   food('Beans', 'protein', '🫘', 80, 'Medium', 50),
@@ -189,6 +199,7 @@ export const SEED_FOODS: Food[] = [
   food('Orange', 'fruit', '🍊', 20, 'Easy', 2),
   food('Pawpaw', 'fruit', '🍈', 50, 'Easy', 3),
   food('Passion', 'fruit', '🟣', 30, 'Easy', 1),
+  food('Guava', 'fruit', '🟢', 30, 'Easy', 2),
 
   // ---- Drinks ----
   food('Tea', 'drink', '🍵', 20, 'Easy', 10),
@@ -214,7 +225,9 @@ export const SEED_FOODS: Food[] = [
   // drinks so a spin never pairs it with tea/coffee (it stands in for them).
   food('Weetabix', 'drink', '🥣', 100, 'Easy', 5),
   food('Boiled Eggs', 'breakfast', '🥚', 60, 'Easy', 12),
+  food('Omelette', 'breakfast', '🍳', 70, 'Easy', 12),
   food('Arrowroots', 'breakfast', '🥔', 70, 'Medium', 25),
+  food('Cassava', 'breakfast', '🍠', 50, 'Easy', 25),
   food('Sweet Potato', 'breakfast', '🍠', 60, 'Medium', 30),
   food('Groundnuts', 'breakfast', '🥜', 50, 'Easy', 2),
   // Sausages are more of a snack/breakfast item, not a main-meal protein.
@@ -249,6 +262,32 @@ const SEED_INGREDIENTS: Record<string, Array<[string, number]>> = {
   food_rice: [['Rice (2 cups)', 55], ['Oil', 5]],
   food_sukuma_wiki: [['Sukuma bunch', 20], ['Onion & oil', 10]],
 }
+// Alternative / local names so search finds foods naturally — English ↔ the
+// Kenyan name the app uses as primary, plus common spellings.
+export const SEED_ALIASES: Record<string, string[]> = {
+  food_ndengu: ['green grams', 'green gram', 'dengu'],
+  food_kamande_lentils_: ['lentils', 'dengu'],
+  food_njahi: ['black beans'],
+  food_omena: ['small fish', 'dagaa', 'silverfish'],
+  food_nyama_choma: ['grilled meat', 'roast meat'],
+  food_kuku_choma: ['grilled chicken', 'roast chicken'],
+  food_githeri: ['maize and beans'],
+  food_mukimo: ['mashed potatoes maize greens'],
+  food_irio: ['mukimo', 'mashed peas maize'],
+  food_kachumbari: ['tomato onion salad', 'fresh salad'],
+  food_viazi_karai: ['fried potato'],
+  food_mutura: ['african sausage'],
+  food_sukuma_wiki: ['leafy greens', 'kales', 'collard greens'],
+  food_pawpaw: ['papaya'],
+  food_tea: ['chai'],
+  food_uji_porridge_: ['porridge'],
+  food_roasted_maize: ['mahindi ya kuchoma', 'roast maize'],
+  food_cassava: ['mihogo', 'muhogo'],
+  food_arrowroots: ['nduma', 'arrow root'],
+  food_matoke: ['plantains', 'green bananas'],
+  food_samaki_wa_kupaka: ['coconut fish'],
+}
+
 for (const f of SEED_FOODS) {
   const rows = SEED_INGREDIENTS[f.id]
   if (rows) {
@@ -260,6 +299,10 @@ for (const f of SEED_FOODS) {
   }
   f.texture = TEXTURE_MAP[f.id] ?? 'neutral'
 }
+// Note: aliases are intentionally NOT stamped onto SEED_FOODS here — the
+// Supabase `foods` table has no aliases column, and SEED_FOODS is upserted
+// there. Aliases are attached at load time instead (see AppContext), keyed by
+// id, so search works regardless of backend without a schema change.
 
 // Start with a single housemate. The user adds the rest in Settings.
 export const SEED_MEMBERS: Member[] = [

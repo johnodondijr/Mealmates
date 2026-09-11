@@ -53,6 +53,9 @@ export interface Food {
   available: boolean
   // Optional itemised ingredient cost breakdown for this food.
   ingredients: Ingredient[]
+  // Alternative / local names so search finds a food by any of them
+  // (e.g. "green grams" → Ndengu, "papaya" → Pawpaw, "chai" → Tea).
+  aliases?: string[]
   created_at: string
 }
 

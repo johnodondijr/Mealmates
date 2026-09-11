@@ -19,7 +19,7 @@ import { newId } from '../lib/id'
 const STORAGE_KEY = 'mealmates.data.v2'
 const SCHEMA_KEY = 'mealmates.schema'
 const CHANNEL = 'mealmates.sync'
-const CURRENT_SCHEMA = 9
+const CURRENT_SCHEMA = 10
 
 // Old loud member colours → curated muted equivalents.
 const MEMBER_RECOLOR: Record<string, string> = {

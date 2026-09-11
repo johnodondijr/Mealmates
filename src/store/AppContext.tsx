@@ -24,6 +24,7 @@ import type {
 } from '../types'
 import { createRepository, usingSupabase, needsHousehold, type Repository } from '../data'
 import { LocalRepository } from '../data/localRepository'
+import { SEED_ALIASES } from '../data/seed'
 import {
   getHouseholdId,
   setHouseholdId,
@@ -145,6 +146,11 @@ function AppProviderInner({ children }: { children: ReactNode }) {
       // can't stall boot.)
       await ensureAuth()
       const fresh = await repo.loadAll()
+      // Attach search aliases (kept out of the DB) by food id, so search finds
+      // foods by local/alternative names regardless of the backend.
+      for (const f of fresh.foods) {
+        if (!f.aliases && SEED_ALIASES[f.id]) f.aliases = SEED_ALIASES[f.id]
+      }
       syncedRef.current = true
       setData(fresh)
     } catch (e) {

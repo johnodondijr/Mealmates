@@ -87,8 +87,11 @@ export function FoodsScreen() {
 
   const foods = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const matches = (f: (typeof data.foods)[number]) =>
+      f.name.toLowerCase().includes(q) ||
+      (f.aliases ?? []).some((a) => a.toLowerCase().includes(q))
     return data.foods
-      .filter((f) => (q ? f.name.toLowerCase().includes(q) : f.category === cat))
+      .filter((f) => (q ? matches(f) : f.category === cat))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [data.foods, cat, query])
 

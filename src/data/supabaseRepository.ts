@@ -77,6 +77,17 @@ export class SupabaseRepository implements Repository {
       return this.loadAll()
     }
 
+    // Self-heal the shared catalog with any newly-added seed foods this project
+    // doesn't have yet (idempotent — no-ops once synced). Written in the
+    // background and merged locally so it shows immediately without a reload.
+    const dbFoods = (foods.data as Food[]) ?? []
+    const haveIds = new Set(dbFoods.map((f) => f.id))
+    const missingFoods = SEED_FOODS.filter((f) => !haveIds.has(f.id))
+    if (missingFoods.length) {
+      this.db.from('foods').upsert(missingFoods).then(undefined, () => {})
+    }
+    const allFoods = [...dbFoods, ...missingFoods]
+
     const h = household.data as Household | null
     const settings: Settings = {
       id: hh,
@@ -90,7 +101,7 @@ export class SupabaseRepository implements Repository {
 
     return {
       members: (members.data as Member[]) ?? [],
-      foods: (foods.data as Food[]) ?? [],
+      foods: allFoods,
       preferences: preferences.data ?? [],
       comboDislikes: comboDislikes.data ?? [],
       plannedMeals: (plannedMeals.data as PlannedMeal[]) ?? [],

@@ -35,6 +35,11 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
   food_ugali: {
     food_sukuma_wiki: 3,
     food_beef_stew: 3,
+    food_beef_fry: 3,
+    food_nyama_choma: 3,
+    food_kuku_choma: 3,
+    food_chicken_wet_fry_: 2.5,
+    food_goat_stew: 2.5,
     food_managu: 2.5,
     food_terere: 2.5,
     food_kunde: 2.5,
@@ -42,11 +47,13 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_pumpkin_leaves: 2,
     food_fried_tilapia: 2.5,
     food_fish_stew: 2.5,
-    food_nyama_choma: 3,
     food_omena: 2.5,
     food_matumbo: 2,
+    food_beans: 2,
+    food_ndengu: 2,
     food_cabbage: 1.5,
     food_spinach: 1.5,
+    food_avocado: 2,
   },
   // Millet ugali eats like ugali — same sides.
   food_wimbi_ugali: {
@@ -65,10 +72,13 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_beans: 2.5,
     food_beef_stew: 2.5,
     food_chicken_wet_fry_: 2.5,
+    food_goat_stew: 2,
     food_minced_meat: 2,
     food_njahi: 2,
+    food_eggs: 2,
     food_sukuma_wiki: 1.5,
     food_cabbage: 1.5,
+    food_avocado: 2,
   },
   food_rice: {
     food_beans: 3,
@@ -77,14 +87,18 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_chicken_dry_fry_: 2.5,
     food_beef_stew: 2.5,
     food_goat_stew: 2,
+    food_fish_stew: 2,
+    food_samaki_wa_kupaka: 2.5,
     food_kamande_lentils_: 2,
     food_minji_peas_: 2,
     food_kachumbari: 2,
     food_cabbage: 1.5,
     food_sukuma_wiki: 1.5,
+    food_avocado: 1.5,
   },
   // Coastal coconut rice leans to fish and rich stews.
   food_coconut_rice: {
+    food_samaki_wa_kupaka: 3,
     food_fish_stew: 3,
     food_fried_tilapia: 2.5,
     food_beef_stew: 2.5,
@@ -104,6 +118,7 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_kachumbari: 2,
     food_beef_stew: 2,
     food_sukuma_wiki: 1.5,
+    food_cabbage: 1.5,
   },
   // Muthokoi (dehulled maize) eats much like githeri.
   food_muthokoi: {
@@ -117,13 +132,26 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
     food_beef_stew: 2.5,
     food_chicken_wet_fry_: 2.5,
     food_goat_stew: 2,
+    food_sukuma_wiki: 1.5,
   },
-  // Mukimo is a soft mash — it wants a light, saucy stew, not dry/fishy sides.
+  // Mukimo & irio are soft mashes — they want a light, saucy stew or roast
+  // meat, not dry/fishy sides.
   food_mukimo: {
     food_beef_stew: 3,
     food_minced_meat: 2.5,
     food_chicken_wet_fry_: 2.5,
+    food_nyama_choma: 2.5,
+    food_goat_stew: 2,
     food_kachumbari: 1.5,
+  },
+  food_irio: {
+    food_beef_stew: 3,
+    food_beef_fry: 2.5,
+    food_nyama_choma: 2.5,
+    food_chicken_wet_fry_: 2.5,
+    food_goat_stew: 2,
+    food_kachumbari: 2,
+    food_cabbage: 1.5,
   },
   food_mashed_potatoes: {
     food_beef_stew: 2.5,
@@ -168,10 +196,13 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
   // e.g. roast/fried meats and pilau pull hard for kachumbari; omena wants a
   // traditional leafy green.
   food_nyama_choma: { food_kachumbari: 3 },
+  food_kuku_choma: { food_kachumbari: 3 },
   food_mutura: { food_kachumbari: 3 },
   food_pork: { food_kachumbari: 2.5 },
+  food_beef_fry: { food_kachumbari: 2, food_sukuma_wiki: 1.5 },
   food_chicken_dry_fry_: { food_kachumbari: 2.5 },
   food_fried_tilapia: { food_kachumbari: 2, food_sukuma_wiki: 1.5 },
+  food_samaki_wa_kupaka: { food_kachumbari: 1.5, food_sukuma_wiki: 1.5 },
   food_fish_stew: { food_sukuma_wiki: 1.5, food_kachumbari: 1.5 },
   food_beef_stew: { food_sukuma_wiki: 1.5, food_spinach: 1 },
   food_matumbo: { food_sukuma_wiki: 1.5 },
@@ -184,6 +215,7 @@ const CLASSIC_PAIRS: Record<string, Record<string, number>> = {
 // beef today and goat tomorrow is still repetitive even though the dish differs.
 const PROTEIN_FAMILY: Record<string, string> = {
   food_beef_stew: 'red_meat',
+  food_beef_fry: 'red_meat',
   food_boiled_meat: 'red_meat',
   food_nyama_choma: 'red_meat',
   food_minced_meat: 'red_meat',
@@ -194,9 +226,11 @@ const PROTEIN_FAMILY: Record<string, string> = {
   food_mutura: 'offal',
   food_chicken_wet_fry_: 'chicken',
   food_chicken_dry_fry_: 'chicken',
+  food_kuku_choma: 'chicken',
   food_kienyeji_chicken: 'chicken',
   food_fried_tilapia: 'fish',
   food_fish_stew: 'fish',
+  food_samaki_wa_kupaka: 'fish',
   food_omena: 'fish',
   food_beans: 'legume',
   food_ndengu: 'legume',
