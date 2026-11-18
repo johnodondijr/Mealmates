@@ -84,8 +84,7 @@ jobs:
       # --- Publish a GitHub Release with the APK attached (tag pushes only) ---
       # Push a version tag to cut a release, e.g:  git tag v1.0.1 && git push origin v1.0.1
       # The signed release APK (falling back to debug if no keystore) is uploaded
-      # under a versioned name, giving a permanent, login-free download link at
-      # github.com/<owner>/Mealmates/releases/latest.
+      # as mealmates.apk for a stable link at releases/latest/download/mealmates.apk.
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
@@ -96,7 +95,8 @@ jobs:
           else
             APK="android/app/build/outputs/apk/debug/app-debug.apk"
           fi
+          cp "$APK" mealmates.apk
           gh release create "$GITHUB_REF_NAME" \
             --title "MealMates $GITHUB_REF_NAME" \
             --generate-notes \
-            "${APK}#MealMates-${GITHUB_REF_NAME}.apk"
+            mealmates.apk
